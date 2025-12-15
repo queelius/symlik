@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "symlik"
-version = "0.1.0"
+version = "0.2.0"
 description = "Symbolic likelihood models for statistical inference"
 readme = "README.md"
 license = {text = "MIT"}
@@ -40,8 +40,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/alextowell/symlik"
-Repository = "https://github.com/alextowell/symlik"
+Homepage = "https://github.com/queelius/symlik"
+Repository = "https://github.com/queelius/symlik"
+Documentation = "https://queelius.github.io/symlik/"
 
 [tool.setuptools.packages.find]
 where = ["."]
