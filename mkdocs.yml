@@ -55,6 +55,7 @@ nav:
     - Custom Models: tutorials/custom-models.md
     - Contribution Models: tutorials/contribution-models.md
     - Series Systems: tutorials/series-systems.md
+    - Thesis Reproduction: tutorials/thesis-reproduction.md
     - Symbolic Calculus: tutorials/symbolic-calculus.md
   - Reference:
     - Distributions: reference/distributions.md
