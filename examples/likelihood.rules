@@ -1,0 +1,117 @@
+# Likelihood Rules for Symbolic Statistical Models
+# These rules define how to construct and simplify likelihood expressions
+
+[distribution-contributions]
+# ===================================================================
+# Single Observation Log-Likelihood Contributions
+# ===================================================================
+
+# Exponential distribution: f(t|λ) = λ exp(-λt)
+@exp-complete "Complete exponential observation":
+    (exp-complete ?rate ?time) => (+ (log :rate) (* -1 (* :rate :time)))
+
+@exp-right-censored "Right-censored exponential":
+    (exp-censored ?rate ?time) => (* -1 (* :rate :time))
+
+@exp-left-censored "Left-censored exponential":
+    (exp-left-cens ?rate ?time) => (log (- 1 (exp (* -1 (* :rate :time)))))
+
+# Normal distribution: f(x|μ,σ²) = (2πσ²)^(-1/2) exp(-(x-μ)²/(2σ²))
+@normal-complete "Complete normal observation":
+    (normal-complete ?mu ?sigma2 ?x) =>
+        (+ (* -0.5 (log (* 2 (* pi :sigma2))))
+           (* -1 (/ (^ (- :x :mu) 2) (* 2 :sigma2))))
+
+# Weibull distribution: f(t|k,θ) = (k/θ)(t/θ)^(k-1) exp(-(t/θ)^k)
+@weibull-complete "Complete Weibull observation":
+    (weibull-complete ?k ?theta ?t) =>
+        (+ (log (/ :k :theta))
+           (* (- :k 1) (log (/ :t :theta)))
+           (* -1 (^ (/ :t :theta) :k)))
+
+@weibull-right-censored "Right-censored Weibull":
+    (weibull-censored ?k ?theta ?t) => (* -1 (^ (/ :t :theta) :k))
+
+[series-system-contributions]
+# ===================================================================
+# Series System Log-Likelihood Contributions
+# System fails when any component fails: T_sys = min(T_1, ..., T_m)
+# ===================================================================
+
+# System survival function: S_sys(t) = exp(-Σ H_i(t))
+# For exponential: H_i(t) = λ_i * t, so S_sys(t) = exp(-t * Σλ_i)
+
+# Known cause: component j failed at time t
+# L = h_j(t) * S_sys(t)
+# log L = log(h_j(t)) - Σ H_i(t)
+
+# Masked cause under C1/C2/C3: candidate set C
+# L = (Σ_{j∈C} h_j(t)) * S_sys(t)
+# log L = log(Σ_{j∈C} h_j(t)) - Σ H_i(t)
+
+# Exponential series: known cause j (0-indexed)
+@exp-series-known "Exponential series with known cause":
+    (exp-series-known ?rates ?cause ?t) =>
+        (+ (log (@ :rates :cause))
+           (* -1 (* :t (sum-list :rates))))
+
+# Exponential series: masked cause with candidate set
+@exp-series-masked "Exponential series with masked cause":
+    (exp-series-masked ?rates ?candidates ?t) =>
+        (+ (log (sum-subset :rates :candidates))
+           (* -1 (* :t (sum-list :rates))))
+
+# Exponential series: right-censored
+@exp-series-censored "Exponential series right-censored":
+    (exp-series-right-cens ?rates ?t) =>
+        (* -1 (* :t (sum-list :rates)))
+
+[aggregation]
+# ===================================================================
+# Aggregation Rules for Multiple Observations
+# ===================================================================
+
+# Sum log-likelihoods over observations
+@sum-over-data "Sum contributions over indexed data":
+    (likelihood ?contrib ?data) =>
+        (sum i (len :data) (apply-contrib :contrib (@ :data i)))
+
+# Combine independent contributions
+@add-likelihoods "Add independent log-likelihoods":
+    (total-lik ?contribs...) => (+ :contribs...)
+
+[hazard-functions]
+# ===================================================================
+# Hazard and Cumulative Hazard Functions
+# ===================================================================
+
+# Exponential: h(t) = λ, H(t) = λt
+@exp-hazard: (hazard exp ?rate ?t) => :rate
+@exp-cum-hazard: (cum-hazard exp ?rate ?t) => (* :rate :t)
+
+# Weibull: h(t) = (k/θ)(t/θ)^(k-1), H(t) = (t/θ)^k
+@weibull-hazard: (hazard weibull ?k ?theta ?t) =>
+    (* (/ :k :theta) (^ (/ :t :theta) (- :k 1)))
+@weibull-cum-hazard: (cum-hazard weibull ?k ?theta ?t) =>
+    (^ (/ :t :theta) :k)
+
+[simplification]
+# ===================================================================
+# Algebraic Simplification Rules
+# ===================================================================
+
+@add-zero[100]: (+ ?x 0) => :x
+@add-zero-r[100]: (+ 0 ?x) => :x
+@mul-one[100]: (* ?x 1) => :x
+@mul-one-r[100]: (* 1 ?x) => :x
+@mul-zero[100]: (* ?x 0) => 0
+@mul-zero-r[100]: (* 0 ?x) => 0
+@neg-neg[90]: (* -1 (* -1 ?x)) => :x
+@log-exp[90]: (log (exp ?x)) => :x
+@exp-log[90]: (exp (log ?x)) => :x
+@power-one: (^ ?x 1) => :x
+@power-zero: (^ ?x 0) => 1
+
+# Sum simplifications
+@sum-zero "Empty sum is 0": (sum ?i 0 ?body) => 0
+@sum-one "Sum over single element": (sum ?i 1 ?body) => :body

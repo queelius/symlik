@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+# Symlik Model Definition: Exponential Distribution
+# This file demonstrates how mathematicians could express models in DSL format
+#
+# Future integration with rerum would allow:
+#   rerum exponential_model.symlik < data.csv
+
+# ===================================================================
+# MODEL: Exponential with right-censoring
+# ===================================================================
+#
+# Complete observation: X_i ~ Exp(λ)
+#   log f(x|λ) = log(λ) - λx
+#
+# Right-censored observation: X_i > c
+#   log S(c|λ) = -λc
+#
+# Total log-likelihood:
+#   ℓ(λ) = Σ_{complete} [log(λ) - λx_i] + Σ_{censored} [-λc_i]
+
+:model exponential-censored
+:params (lambda)
+:data (obs_type t)
+
+# Define contribution types
+:contribution complete
+    (+ (log lambda) (* -1 (* lambda t)))
+
+:contribution censored
+    (* -1 (* lambda t))
+
+# Type dispatch
+:dispatch obs_type
+    complete -> complete
+    censored -> censored
+
+# ===================================================================
+# Example data (inline for demonstration)
+# In practice, data would come from external file
+# ===================================================================
+
+# :data-inline
+#   obs_type    t
+#   complete    1.2
+#   complete    0.8
+#   censored    3.0
+#   complete    2.1
+#   censored    4.5
+
+# ===================================================================
+# Fitting parameters
+# ===================================================================
+
+# :init lambda 1.0
+# :bounds lambda (0.001 inf)
+
+# ===================================================================
+# Alternative: Pure s-expression format
+# ===================================================================
+#
+# The log-likelihood can also be expressed as a single s-expression:
+#
+# (sum i (len t_complete)
+#      (+ (log lambda) (* -1 (* lambda (@ t_complete i)))))
+# +
+# (sum i (len t_censored)
+#      (* -1 (* lambda (@ t_censored i))))
+#
+# This is what ContributionModel internally generates.
+
+# ===================================================================
+# Mathematical notation (for documentation)
+# ===================================================================
+#
+# PDF: f(t|λ) = λ exp(-λt)
+# CDF: F(t|λ) = 1 - exp(-λt)
+# Survival: S(t|λ) = exp(-λt)
+# Hazard: h(t|λ) = λ (constant - memoryless property)
+#
+# MLE (no censoring): λ̂ = n / Σx_i
+# MLE (with censoring): Solve Σ(1/λ - x_i) + Σ(-c_j) = 0
+#                       => λ̂ = n_complete / (Σx_i + Σc_j)
