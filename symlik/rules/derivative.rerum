@@ -1,0 +1,48 @@
+# Derivative Rules for Symbolic Differentiation
+# Notation: (dd expr var) means d(expr)/d(var)
+
+# Basic derivative rules
+@dd-var "d/dx(x) = 1": (dd ?x:var ?x) => 1
+@dd-const "d/dx(c) = 0": (dd ?c:const ?v:var) => 0
+@dd-other-var "d/dx(y) = 0 when y != x": (dd ?u:var ?v:var) => 0
+
+# Linear rules
+@dd-sum "Sum rule": (dd (+ ?f ?g) ?v:var) => (+ (dd :f :v) (dd :g :v))
+@dd-diff "Difference rule": (dd (- ?f ?g) ?v:var) => (- (dd :f :v) (dd :g :v))
+@dd-neg "Negation rule": (dd (- ?f) ?v:var) => (- (dd :f :v))
+@dd-const-mult "Constant multiple": (dd (* ?c:const ?f) ?v:var) => (* :c (dd :f :v))
+
+# Product and quotient rules
+@dd-product "Product rule: (fg)' = f'g + fg'": (dd (* ?f ?g) ?v:var) => (+ (* (dd :f :v) :g) (* :f (dd :g :v)))
+@dd-quotient "Quotient rule: (f/g)' = (f'g - fg')/g^2": (dd (/ ?f ?g) ?v:var) => (/ (- (* (dd :f :v) :g) (* :f (dd :g :v))) (^ :g 2))
+
+# Power rules
+@dd-power-var "Power rule: d/dx(x^n) = nx^(n-1)": (dd (^ ?x:var ?n:const) ?x) => (* :n (^ :x (- :n 1)))
+@dd-power-chain "Chain rule for power": (dd (^ ?f ?n:const) ?v:var) => (* (* :n (^ :f (- :n 1))) (dd :f :v))
+
+# Exponential and logarithm
+@dd-exp-var "d/dx(e^x) = e^x": (dd (exp ?x:var) ?x) => (exp :x)
+@dd-exp-chain "Chain rule for exp": (dd (exp ?f) ?v:var) => (* (exp :f) (dd :f :v))
+@dd-log-var "d/dx(ln x) = 1/x": (dd (log ?x:var) ?x) => (/ 1 :x)
+@dd-log-chain "Chain rule for log": (dd (log ?f) ?v:var) => (/ (dd :f :v) :f)
+
+# Trigonometric functions
+@dd-sin-var "d/dx(sin x) = cos x": (dd (sin ?x:var) ?x) => (cos :x)
+@dd-sin-chain "Chain rule for sin": (dd (sin ?f) ?v:var) => (* (cos :f) (dd :f :v))
+@dd-cos-var "d/dx(cos x) = -sin x": (dd (cos ?x:var) ?x) => (* -1 (sin :x))
+@dd-cos-chain "Chain rule for cos": (dd (cos ?f) ?v:var) => (* -1 (* (sin :f) (dd :f :v)))
+@dd-tan-var "d/dx(tan x) = sec^2 x": (dd (tan ?x:var) ?x) => (/ 1 (^ (cos :x) 2))
+@dd-tan-chain "Chain rule for tan": (dd (tan ?f) ?v:var) => (* (/ 1 (^ (cos :f) 2)) (dd :f :v))
+
+# Square root
+@dd-sqrt-var "d/dx(sqrt x) = 1/(2 sqrt x)": (dd (sqrt ?x:var) ?x) => (/ 1 (* 2 (sqrt :x)))
+@dd-sqrt-chain "Chain rule for sqrt": (dd (sqrt ?f) ?v:var) => (* (/ 1 (* 2 (sqrt :f))) (dd :f :v))
+
+# Summation passes through differentiation
+@dd-sum-op "d/dv sum_i f = sum_i d/dv f": (dd (sum ?i:var ?n ?body) ?v:var) => (sum :i :n (dd :body :v))
+
+# Data operations are constant w.r.t. parameters
+@dd-index "Data indexing is constant": (dd (@ ?data ?idx) ?v:var) => 0
+@dd-index-fn "Index function is constant": (dd (index ?data ?idx) ?v:var) => 0
+@dd-len "Length is constant": (dd (len ?data) ?v:var) => 0
+@dd-total "Total is constant": (dd (total ?data) ?v:var) => 0

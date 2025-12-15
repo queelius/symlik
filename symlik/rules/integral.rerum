@@ -1,0 +1,14 @@
+# Basic Integration Rules
+# Notation: (int expr var) means integral of expr with respect to var
+
+# Power rule
+@int-power "integral of x^n": (int (^ ?x:var ?n:const) ?x) => (/ (^ :x (+ :n 1)) (+ :n 1))
+@int-const "integral of constant": (int ?c:const ?x:var) => (* :c :x)
+@int-var "integral of x": (int ?x:var ?x) => (/ (^ :x 2) 2)
+
+# Exponential
+@int-exp "integral of e^x": (int (exp ?x:var) ?x) => (exp :x)
+
+# Trigonometric
+@int-sin "integral of sin": (int (sin ?x:var) ?x) => (* -1 (cos :x))
+@int-cos "integral of cos": (int (cos ?x:var) ?x) => (sin :x)

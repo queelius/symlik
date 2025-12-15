@@ -1,0 +1,70 @@
+# Algebraic Simplification Rules
+
+# Additive identity
+@add-zero-right "x + 0 = x": (+ ?x 0) => :x
+@add-zero-left "0 + x = x": (+ 0 ?x) => :x
+
+# Subtractive identity
+@sub-zero "x - 0 = x": (- ?x 0) => :x
+@sub-from-zero "0 - x = -x": (- 0 ?x) => (- :x)
+@sub-self "x - x = 0": (- ?x ?x) => 0
+
+# Multiplicative identity and zero
+@mul-one-right "x * 1 = x": (* ?x 1) => :x
+@mul-one-left "1 * x = x": (* 1 ?x) => :x
+@mul-zero-right "x * 0 = 0": (* ?x 0) => 0
+@mul-zero-left "0 * x = 0": (* 0 ?x) => 0
+@mul-neg-one-right "x * -1 = -x": (* ?x -1) => (- :x)
+@mul-neg-one-left "-1 * x = -x": (* -1 ?x) => (- :x)
+
+# Division identity
+@div-one "x / 1 = x": (/ ?x 1) => :x
+@div-zero "0 / x = 0": (/ 0 ?x) => 0
+@div-self "x / x = 1": (/ ?x ?x) => 1
+
+# Power identity
+@pow-zero "x^0 = 1": (^ ?x 0) => 1
+@pow-one "x^1 = x": (^ ?x 1) => :x
+@one-pow "1^x = 1": (^ 1 ?x) => 1
+@zero-pow "0^n = 0": (^ 0 ?n:const) => 0
+@pow-neg-one "x^-1 = 1/x": (^ ?x -1) => (/ 1 :x)
+
+# Double negation
+@neg-neg "--x = x": (- (- ?x)) => :x
+
+# Combining terms
+@add-same "x + x = 2x": (+ ?x ?x) => (* 2 :x)
+@mul-same "x * x = x^2": (* ?x ?x) => (^ :x 2)
+
+# Power rules
+@pow-mul "x^a * x^b = x^(a+b)": (* (^ ?x ?a) (^ ?x ?b)) => (^ :x (+ :a :b))
+@pow-pow "(x^a)^b = x^(a*b)": (^ (^ ?x ?a) ?b) => (^ :x (* :a :b))
+
+# Exponential rules
+@exp-zero "e^0 = 1": (exp 0) => 1
+@exp-mul "e^a * e^b = e^(a+b)": (* (exp ?a) (exp ?b)) => (exp (+ :a :b))
+
+# Logarithm rules
+@log-one "ln(1) = 0": (log 1) => 0
+@log-exp "ln(e^x) = x": (log (exp ?x)) => :x
+@exp-log "e^(ln x) = x": (exp (log ?x)) => :x
+
+# Trig identities
+@sin-zero "sin(0) = 0": (sin 0) => 0
+@cos-zero "cos(0) = 1": (cos 0) => 1
+@tan-zero "tan(0) = 0": (tan 0) => 0
+
+# Square root
+@sqrt-zero "sqrt(0) = 0": (sqrt 0) => 0
+@sqrt-one "sqrt(1) = 1": (sqrt 1) => 1
+@sqrt-sq "sqrt(x)^2 = x": (^ (sqrt ?x) 2) => :x
+
+# Summation rules
+@sum-zero "sum of zeros": (sum ?i:var ?n 0) => 0
+@sum-add "sum distributes over +": (sum ?i:var ?n (+ ?a ?b)) => (+ (sum :i :n :a) (sum :i :n :b))
+@sum-const-factor "factor out constant": (sum ?i:var ?n (* ?c:free(i) ?a)) => (* :c (sum :i :n :a))
+@sum-const "sum of constant": (sum ?i:var ?n ?c:free(i)) => (* :n :c)
+
+# Product rules
+@prod-one "product of ones": (prod ?i:var ?n 1) => 1
+@log-prod "log of product": (log (prod ?i:var ?n ?body)) => (sum :i :n (log :body))
