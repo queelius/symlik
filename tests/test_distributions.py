@@ -13,6 +13,15 @@ from symlik.distributions import (
     gamma,
     weibull,
     beta,
+    lognormal,
+    negative_binomial,
+    student_t,
+    uniform,
+    laplace,
+    geometric,
+    pareto,
+    cauchy,
+    inverse_gaussian,
 )
 
 
@@ -465,3 +474,436 @@ class TestNestedDataIndexing:
         data2 = {"x": [0.0, 20.0, 30.0]}
         result2 = evaluate(expr, data2)
         assert result2 == pytest.approx(30.0)
+
+
+# ============================================================
+# Tests for New Distribution Families
+# ============================================================
+
+
+class TestLognormal:
+    """Test log-normal distribution."""
+
+    def test_params(self):
+        model = lognormal()
+        assert model.params == ["mu", "sigma2"]
+
+    def test_custom_names(self):
+        model = lognormal(data_var="y", mu="m", sigma2="s2")
+        assert model.params == ["m", "s2"]
+
+    def test_mle(self):
+        model = lognormal()
+        np.random.seed(42)
+        # mu=1.0, sigma=0.5
+        samples = np.random.lognormal(mean=1.0, sigma=0.5, size=500)
+        data = {"x": samples.tolist()}
+        # Use sample statistics as initial values
+        log_samples = np.log(samples)
+        mle, _ = model.mle(
+            data=data,
+            init={"mu": float(np.mean(log_samples)), "sigma2": float(np.var(log_samples))},
+            bounds={"mu": (-5, 5), "sigma2": (0.01, 2.0)}
+        )
+        # MLE: mu = mean(log(x)), sigma2 = var(log(x))
+        assert mle["mu"] == pytest.approx(1.0, rel=0.1)
+        assert mle["sigma2"] == pytest.approx(0.25, rel=0.2)  # sigma^2 = 0.5^2 = 0.25
+
+    def test_score(self):
+        model = lognormal()
+        score = model.score()
+        assert len(score) == 2
+
+
+class TestNegativeBinomial:
+    """Test negative binomial distribution."""
+
+    def test_params(self):
+        model = negative_binomial()
+        assert model.params == ["r", "p"]
+
+    def test_custom_names(self):
+        model = negative_binomial(data_var="counts", r="size", p="prob")
+        assert model.params == ["size", "prob"]
+
+    def test_mle(self):
+        model = negative_binomial()
+        np.random.seed(42)
+        # r=5, p=0.6 -> mean = r(1-p)/p = 5*0.4/0.6 ≈ 3.33
+        samples = np.random.negative_binomial(n=5, p=0.6, size=300)
+        data = {"x": samples.tolist()}
+        mle, _ = model.mle(
+            data=data,
+            init={"r": 3.0, "p": 0.5},
+            bounds={"r": (0.5, 20), "p": (0.1, 0.9)}
+        )
+        assert mle["r"] == pytest.approx(5.0, rel=0.3)
+        assert mle["p"] == pytest.approx(0.6, rel=0.2)
+
+    def test_score(self):
+        model = negative_binomial()
+        score = model.score()
+        assert len(score) == 2
+
+
+class TestStudentT:
+    """Test Student's t distribution."""
+
+    def test_params(self):
+        model = student_t()
+        assert model.params == ["mu", "sigma2", "nu"]
+
+    def test_custom_names(self):
+        model = student_t(data_var="y", mu="loc", sigma2="scale", nu="df")
+        assert model.params == ["loc", "scale", "df"]
+
+    def test_mle_approaches_normal(self):
+        """With high df, should behave like normal."""
+        model = student_t()
+        np.random.seed(42)
+        # Large nu -> approaches normal
+        samples = np.random.normal(loc=3.0, scale=2.0, size=200)
+        data = {"x": samples.tolist()}
+        # Use sample statistics as initial values
+        mle, _ = model.mle(
+            data=data,
+            init={"mu": float(np.mean(samples)), "sigma2": float(np.var(samples)), "nu": 30.0},
+            bounds={"sigma2": (0.01, None), "nu": (2.0, 100.0)}
+        )
+        assert mle["mu"] == pytest.approx(3.0, rel=0.2)
+        # For t-distribution, relationship between sigma2 and sample variance is complex
+        # Just check it's in a reasonable range
+        assert 1.0 < mle["sigma2"] < 10.0
+
+    def test_score(self):
+        model = student_t()
+        score = model.score()
+        assert len(score) == 3
+
+
+class TestUniform:
+    """Test uniform distribution."""
+
+    def test_params(self):
+        model = uniform()
+        assert model.params == ["a", "b"]
+
+    def test_custom_names(self):
+        model = uniform(data_var="y", a="lower", b="upper")
+        assert model.params == ["lower", "upper"]
+
+    def test_evaluate(self):
+        model = uniform()
+        # ℓ(a=0, b=1 | x=[0.2, 0.5, 0.8]) = -3*log(1-0) = 0
+        ll = model.evaluate({"x": [0.2, 0.5, 0.8], "a": 0.0, "b": 1.0})
+        assert ll == pytest.approx(0.0)
+
+        # ℓ(a=0, b=2 | x=[0.2, 0.5, 0.8]) = -3*log(2) ≈ -2.08
+        ll2 = model.evaluate({"x": [0.2, 0.5, 0.8], "a": 0.0, "b": 2.0})
+        assert ll2 == pytest.approx(-3 * math.log(2))
+
+    def test_score(self):
+        model = uniform()
+        score = model.score()
+        assert len(score) == 2
+
+
+class TestLaplace:
+    """Test Laplace distribution."""
+
+    def test_params(self):
+        model = laplace()
+        assert model.params == ["mu", "b"]
+
+    def test_custom_names(self):
+        model = laplace(data_var="y", mu="loc", b="scale")
+        assert model.params == ["loc", "scale"]
+
+    def test_mle(self):
+        model = laplace()
+        np.random.seed(42)
+        # mu=2.0, b=1.0
+        samples = np.random.laplace(loc=2.0, scale=1.0, size=500)
+        data = {"x": samples.tolist()}
+        # Use median as initial value for mu (close to MLE)
+        mle, _ = model.mle(
+            data=data,
+            init={"mu": float(np.median(samples)), "b": 1.0},
+            bounds={"b": (0.01, None)}
+        )
+        # MLE: mu ≈ median, b ≈ mean absolute deviation
+        assert mle["mu"] == pytest.approx(2.0, rel=0.1)
+        assert mle["b"] == pytest.approx(1.0, rel=0.2)
+
+    def test_robust_to_outliers(self):
+        """Laplace should be more robust than normal to outliers."""
+        model = laplace()
+        # Data with an outlier
+        data = {"x": [1.0, 2.0, 2.5, 3.0, 100.0]}
+        # Use median as initial value
+        mle, _ = model.mle(
+            data=data,
+            init={"mu": 2.5, "b": 1.0},
+            bounds={"b": (0.01, None)}
+        )
+        # Mu should be close to the median (2.5), not pulled by outlier
+        assert mle["mu"] == pytest.approx(2.5, rel=0.5)
+
+    def test_score(self):
+        model = laplace()
+        score = model.score()
+        assert len(score) == 2
+
+
+class TestGeometric:
+    """Test geometric distribution."""
+
+    def test_params(self):
+        model = geometric()
+        assert model.params == ["p"]
+
+    def test_custom_names(self):
+        model = geometric(data_var="failures", p="prob")
+        assert model.params == ["prob"]
+
+    def test_mle(self):
+        model = geometric()
+        np.random.seed(42)
+        # p=0.3 -> mean = (1-p)/p = 0.7/0.3 ≈ 2.33
+        samples = np.random.geometric(p=0.3, size=500) - 1  # numpy counts trials, we want failures
+        data = {"x": samples.tolist()}
+        mle, _ = model.mle(
+            data=data,
+            init={"p": 0.5},
+            bounds={"p": (0.01, 0.99)}
+        )
+        # MLE: p = n/(n + sum(x)) = 1/(1 + mean(x))
+        assert mle["p"] == pytest.approx(0.3, rel=0.15)
+
+    def test_score(self):
+        model = geometric()
+        score = model.score()
+        assert len(score) == 1
+
+
+class TestPareto:
+    """Test Pareto distribution."""
+
+    def test_params(self):
+        model = pareto()
+        assert model.params == ["alpha", "x_min"]
+
+    def test_custom_names(self):
+        model = pareto(data_var="income", alpha="shape", x_min="scale")
+        assert model.params == ["shape", "scale"]
+
+    def test_evaluate(self):
+        """Test log-likelihood evaluation for Pareto distribution."""
+        model = pareto()
+        # For Pareto: ℓ = n*log(α) + n*α*log(xₘ) - (α+1)*Σlog(xᵢ)
+        # With x=[2,3,4], alpha=2, x_min=1:
+        # ℓ = 3*log(2) + 3*2*log(1) - 3*Σlog([2,3,4])
+        #   = 3*0.693 + 0 - 3*(0.693+1.099+1.386)
+        #   = 2.079 - 3*3.178 = 2.079 - 9.534 = -7.455
+        ll = model.evaluate({"x": [2.0, 3.0, 4.0], "alpha": 2.0, "x_min": 1.0})
+        expected = 3 * math.log(2) - 3 * (math.log(2) + math.log(3) + math.log(4))
+        assert ll == pytest.approx(expected, rel=1e-5)
+
+    def test_score_at_mle(self):
+        """Test that the score is zero at the analytic MLE."""
+        from symlik import evaluate
+
+        np.random.seed(42)
+        u = np.random.uniform(0, 1, size=500)
+        samples = 1.0 * (1 - u) ** (-1 / 2.5)
+        x_min_data = min(samples)
+
+        # Analytic MLE for alpha given x_min = min(x)
+        alpha_analytic = len(samples) / np.sum(np.log(samples) - np.log(x_min_data))
+
+        # Verify score wrt alpha is zero at the analytic MLE
+        model = pareto()
+        score_exprs = model.score()
+        data = {"x": samples.tolist(), "alpha": alpha_analytic, "x_min": x_min_data}
+        grad_alpha = evaluate(score_exprs[0], data)
+
+        # Score should be (approximately) zero at MLE
+        assert grad_alpha == pytest.approx(0.0, abs=1e-6)
+        # And the analytic MLE should be close to true value
+        assert alpha_analytic == pytest.approx(2.5, rel=0.05)
+
+    def test_score(self):
+        model = pareto()
+        score = model.score()
+        assert len(score) == 2
+
+
+class TestCauchy:
+    """Test Cauchy distribution."""
+
+    def test_params(self):
+        model = cauchy()
+        assert model.params == ["x0", "gamma"]
+
+    def test_custom_names(self):
+        model = cauchy(data_var="y", x0="loc", gamma_param="scale")
+        assert model.params == ["loc", "scale"]
+
+    def test_evaluate(self):
+        model = cauchy()
+        # Single point at the mode
+        ll = model.evaluate({"x": [0.0], "x0": 0.0, "gamma": 1.0})
+        # f(0|0,1) = 1/(π*1*(1+0)) = 1/π
+        expected = math.log(1 / math.pi)
+        assert ll == pytest.approx(expected, rel=1e-5)
+
+    def test_mle(self):
+        """Basic Cauchy MLE test - note Cauchy is notoriously hard to estimate."""
+        model = cauchy()
+        np.random.seed(42)
+        # Standard Cauchy (x0=0, gamma=1)
+        samples = np.random.standard_cauchy(size=200)
+        # Trim extreme outliers for stability
+        samples = samples[(samples > -50) & (samples < 50)]
+        data = {"x": samples.tolist()}
+        mle, _ = model.mle(
+            data=data,
+            init={"x0": 0.0, "gamma": 1.0},
+            bounds={"gamma": (0.1, 10)}
+        )
+        # Location should be near 0 (median)
+        assert abs(mle["x0"]) < 1.0
+        # Scale should be near 1
+        assert mle["gamma"] == pytest.approx(1.0, rel=0.5)
+
+    def test_score(self):
+        model = cauchy()
+        score = model.score()
+        assert len(score) == 2
+
+
+class TestInverseGaussian:
+    """Test inverse Gaussian (Wald) distribution."""
+
+    def test_params(self):
+        model = inverse_gaussian()
+        assert model.params == ["mu", "lambda"]
+
+    def test_custom_names(self):
+        model = inverse_gaussian(data_var="t", mu="mean", lambda_param="shape")
+        assert model.params == ["mean", "shape"]
+
+    def test_mle(self):
+        model = inverse_gaussian()
+        np.random.seed(42)
+        # mu=2.0, lambda=3.0
+        samples = np.random.wald(mean=2.0, scale=3.0, size=500)
+        data = {"x": samples.tolist()}
+        mle, _ = model.mle(
+            data=data,
+            init={"mu": 1.0, "lambda": 1.0},
+            bounds={"mu": (0.1, 10), "lambda": (0.1, 20)}
+        )
+        # MLE: mu = mean(x)
+        assert mle["mu"] == pytest.approx(2.0, rel=0.15)
+        assert mle["lambda"] == pytest.approx(3.0, rel=0.3)
+
+    def test_score(self):
+        model = inverse_gaussian()
+        score = model.score()
+        assert len(score) == 2
+
+
+class TestNewDistributionScores:
+    """Test that new distributions have well-defined score functions."""
+
+    def test_lognormal_score(self):
+        model = lognormal()
+        score = model.score()
+        assert len(score) == 2
+
+    def test_negative_binomial_score(self):
+        model = negative_binomial()
+        score = model.score()
+        assert len(score) == 2
+
+    def test_student_t_score(self):
+        model = student_t()
+        score = model.score()
+        assert len(score) == 3
+
+    def test_uniform_score(self):
+        model = uniform()
+        score = model.score()
+        assert len(score) == 2
+
+    def test_laplace_score(self):
+        model = laplace()
+        score = model.score()
+        assert len(score) == 2
+
+    def test_geometric_score(self):
+        model = geometric()
+        score = model.score()
+        assert len(score) == 1
+
+    def test_pareto_score(self):
+        model = pareto()
+        score = model.score()
+        assert len(score) == 2
+
+    def test_cauchy_score(self):
+        model = cauchy()
+        score = model.score()
+        assert len(score) == 2
+
+    def test_inverse_gaussian_score(self):
+        model = inverse_gaussian()
+        score = model.score()
+        assert len(score) == 2
+
+
+class TestNewDistributionHessians:
+    """Test that new distributions have well-defined Hessian matrices."""
+
+    def test_lognormal_hessian(self):
+        model = lognormal()
+        hess = model.hessian()
+        assert len(hess) == 2
+        assert len(hess[0]) == 2
+
+    def test_negative_binomial_hessian(self):
+        model = negative_binomial()
+        hess = model.hessian()
+        assert len(hess) == 2
+        assert len(hess[0]) == 2
+
+    def test_student_t_hessian(self):
+        model = student_t()
+        hess = model.hessian()
+        assert len(hess) == 3
+        assert len(hess[0]) == 3
+
+    def test_laplace_hessian(self):
+        model = laplace()
+        hess = model.hessian()
+        assert len(hess) == 2
+        assert len(hess[0]) == 2
+
+    def test_geometric_hessian(self):
+        model = geometric()
+        hess = model.hessian()
+        assert len(hess) == 1
+        assert len(hess[0]) == 1
+
+    def test_pareto_hessian(self):
+        model = pareto()
+        hess = model.hessian()
+        assert len(hess) == 2
+        assert len(hess[0]) == 2
+
+    def test_inverse_gaussian_hessian(self):
+        model = inverse_gaussian()
+        hess = model.hessian()
+        assert len(hess) == 2
+        assert len(hess[0]) == 2

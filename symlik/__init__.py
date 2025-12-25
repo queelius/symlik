@@ -35,7 +35,7 @@ For heterogeneous data with different observation types:
     ... )
 """
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 # Core model classes
 from .model import LikelihoodModel
@@ -97,5 +97,7 @@ __all__ = [
     "create_full_engine",
 ]
 
-# Series system module available as symlik.series
-from . import series
+# Additional modules available as symlik.<module>
+from . import series      # Series system reliability
+from . import regression  # GLM/regression models
+from . import mixture     # Latent variable/mixture models

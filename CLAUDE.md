@@ -40,7 +40,7 @@ The core insight is clean separation between **symbolic rewriting** and **numeri
    - **Special forms** (hardcoded): `sum`, `prod`, `@`, `len`, `total`, `dd`, `int`, `if` - these control evaluation flow
    - **Strict operators** (extensible via `STANDARD_OPS`): `+`, `-`, `*`, `/`, `sin`, `cos`, `exp`, `log`, etc.
 
-Irreducible symbolic forms (like an integral that can't be solved analytically) are passed to numerical methods at evaluation time.
+Irreducible symbolic forms (like `['dd', expr, var]` that can't be simplified) fall back to numerical methods at evaluation time (finite differences for derivatives, Simpson's rule for integrals).
 
 ### Expression Format
 
@@ -56,7 +56,13 @@ Expressions are S-expressions represented as Python lists:
 
 - **`LikelihoodModel`** (`model.py`): Core abstraction combining symbolic log-likelihood with automatic differentiation. Provides `score()` (gradient), `hessian()`, `mle()`, and `se()` (standard errors).
 
+- **`ContributionModel`** (`contribution.py`): For heterogeneous data with different observation types (e.g., complete vs censored). Dispatches on a type column, builds composite log-likelihood by summing over each type's contribution.
+
 - **`symlik.distributions`**: Pre-built distribution constructors (exponential, normal, poisson, bernoulli, gamma, weibull, beta) that return configured `LikelihoodModel` instances.
+
+- **`symlik.series`**: Series system reliability modeling. Provides `ComponentHazard` building blocks and factories like `build_exponential_series_contributions()` for multi-component systems with known cause, masked cause, and censored observations.
+
+- **`symlik.contributions`**: Pre-built contribution functions for common cases (`complete_exponential`, `right_censored_exponential`, etc.).
 
 - **`symlik.rules/`**: Contains `.rerum` rule files loaded by `rerum.RuleEngine`:
   - `derivative.rerum`: Differentiation rules (power rule, chain rule, etc.)
