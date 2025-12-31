@@ -27,7 +27,7 @@ classifiers = [
 requires-python = ">=3.8"
 dependencies = [
     "numpy>=1.20.0",
-    "rerum>=0.1.0",
+    "rerum==0.2.2",
 ]
 
 [project.optional-dependencies]
