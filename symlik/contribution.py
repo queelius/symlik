@@ -7,12 +7,15 @@ Supports observation types with different likelihood forms, such as:
 - Different censoring mechanisms in survival analysis
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Union
-import copy
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+import numpy as np
 
 from .model import LikelihoodModel
 from .evaluate import ExprType, evaluate
 from .utils import to_data_dict
+
+if TYPE_CHECKING:
+    from .fitted import FittedLikelihoodModel
 
 
 class ContributionModel:
@@ -37,7 +40,9 @@ class ContributionModel:
         ...     "obs_type": ["complete", "censored", "complete"],
         ...     "t": [1.0, 2.0, 0.5],
         ... }
-        >>> mle, _ = model.mle(data=data, init={"lambda": 1.0})
+        >>> fit = model.fit(data=data, init={"lambda": 1.0})
+        >>> fit.params
+        >>> fit.summary()
     """
 
     def __init__(
@@ -228,7 +233,7 @@ class ContributionModel:
 
         return self._model.evaluate(prepared)
 
-    def score_at(self, data_and_params: Dict[str, Any]) -> "np.ndarray":
+    def score_at(self, data_and_params: Dict[str, Any]) -> np.ndarray:
         """
         Evaluate score vector at given parameter/data values.
 
@@ -238,8 +243,6 @@ class ContributionModel:
         Returns:
             Array of score values
         """
-        import numpy as np
-
         data = {k: v for k, v in data_and_params.items() if k not in self.params}
         params = {k: v for k, v in data_and_params.items() if k in self.params}
 
@@ -248,7 +251,7 @@ class ContributionModel:
 
         return self._model.score_at(prepared)
 
-    def hessian_at(self, data_and_params: Dict[str, Any]) -> "np.ndarray":
+    def hessian_at(self, data_and_params: Dict[str, Any]) -> np.ndarray:
         """
         Evaluate Hessian matrix at given parameter/data values.
 
@@ -266,7 +269,7 @@ class ContributionModel:
 
         return self._model.hessian_at(prepared)
 
-    def information_at(self, data_and_params: Dict[str, Any]) -> "np.ndarray":
+    def information_at(self, data_and_params: Dict[str, Any]) -> np.ndarray:
         """
         Evaluate observed information at given parameter/data values.
 
@@ -278,64 +281,58 @@ class ContributionModel:
         """
         return -self.hessian_at(data_and_params)
 
-    def mle(
+    def fit(
         self,
         data: Any,
         init: Dict[str, float],
         max_iter: int = 100,
         tol: float = 1e-8,
-        bounds: Optional[Dict[str, Tuple[float, float]]] = None,
-    ) -> Tuple[Dict[str, float], int]:
+        bounds: Optional[Dict[str, Tuple[Optional[float], Optional[float]]]] = None,
+    ) -> 'FittedLikelihoodModel':
         """
-        Find MLE using Newton-Raphson optimization.
+        Fit the model to data.
+
+        Uses Newton-Raphson optimization to find maximum likelihood estimates,
+        then returns a FittedLikelihoodModel with full inference capabilities.
 
         Args:
             data: Data values as dict, pandas DataFrame, or polars DataFrame.
                   Must include the type column and all data columns.
             init: Initial parameter guesses
-            max_iter: Maximum iterations
-            tol: Convergence tolerance for score norm
+            max_iter: Maximum iterations (default 100)
+            tol: Convergence tolerance for score norm (default 1e-8)
             bounds: Optional parameter bounds {param: (min, max)}
 
         Returns:
-            Tuple of (MLE estimates dict, number of iterations)
+            FittedLikelihoodModel with estimation results
 
         Example:
-            >>> import pandas as pd
-            >>> df = pd.DataFrame({
-            ...     'obs_type': ['complete', 'censored', 'complete'],
-            ...     't': [1.0, 2.0, 0.5]
-            ... })
-            >>> mle, _ = model.mle(data=df, init={'lambda': 1.0})
+            >>> model = ContributionModel(...)
+            >>> fit = model.fit(data, init={'lambda': 1.0})
+            >>> fit.params        # MLE estimates
+            >>> fit.se            # Standard errors
+            >>> fit.conf_int()    # Confidence intervals
+            >>> fit.summary()     # Full summary table
         """
+        from .fitted import FittedLikelihoodModel
+
         # Prepare type-split data
         prepared = self._prepare_data(data)
 
-        return self._model.mle(
-            data=prepared,
-            init=init,
-            max_iter=max_iter,
-            tol=tol,
-            bounds=bounds,
-        )
+        # Use internal model's optimization
+        params, n_iter = self._model._optimize(prepared, init, max_iter, tol, bounds)
 
-    def se(
-        self,
-        mle: Dict[str, float],
-        data: Any,
-    ) -> Dict[str, float]:
-        """
-        Compute Wald standard errors at MLE.
+        # Check convergence
+        env = dict(prepared)
+        env.update(params)
+        try:
+            score = self._model.score_at(env)
+            converged = bool(np.linalg.norm(score) < tol)
+        except Exception:
+            converged = False
 
-        Args:
-            mle: MLE parameter estimates
-            data: Data values as dict, pandas DataFrame, or polars DataFrame
-
-        Returns:
-            Dictionary of standard errors
-        """
-        prepared = self._prepare_data(data)
-        return self._model.se(mle, prepared)
+        # Return FittedLikelihoodModel with internal model and prepared data
+        return FittedLikelihoodModel(self._model, prepared, params, n_iter, converged)
 
     def __repr__(self) -> str:
         types = list(self.contributions.keys())

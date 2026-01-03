@@ -57,15 +57,15 @@ class TestZeroInflatedPoisson:
         y = np.where(is_structural_zero, 0, poisson_counts)
 
         model = zero_inflated_poisson()
-        mle, _ = model.mle(
+        fit = model.fit(
             data={"y": y.tolist()},
             init={"pzero": 0.3, "lambda": 2.0},
             bounds={"pzero": (0.01, 0.99), "lambda": (0.1, None)}
         )
 
         # Should recover parameters approximately
-        assert mle["pzero"] == pytest.approx(true_pzero, abs=0.15)
-        assert mle["lambda"] == pytest.approx(true_lambda, abs=0.5)
+        assert fit.params["pzero"] == pytest.approx(true_pzero, abs=0.15)
+        assert fit.params["lambda"] == pytest.approx(true_lambda, abs=0.5)
 
     def test_score(self):
         model = zero_inflated_poisson()
@@ -106,16 +106,16 @@ class TestZeroInflatedNegativeBinomial:
         y = np.where(is_structural_zero, 0, nb_counts)
 
         model = zero_inflated_negative_binomial()
-        mle, _ = model.mle(
+        fit = model.fit(
             data={"y": y.tolist()},
             init={"pzero": 0.2, "r": 2.0, "p": 0.5},
             bounds={"pzero": (0.01, 0.99), "r": (0.1, 20), "p": (0.01, 0.99)}
         )
 
         # Check estimates are reasonable
-        assert 0 < mle["pzero"] < 1
-        assert mle["r"] > 0
-        assert 0 < mle["p"] < 1
+        assert 0 < fit.params["pzero"] < 1
+        assert fit.params["r"] > 0
+        assert 0 < fit.params["p"] < 1
 
     def test_score(self):
         model = zero_inflated_negative_binomial()
@@ -166,14 +166,14 @@ class TestHurdlePoisson:
         y = np.where(is_zero, 0, positive_counts)
 
         model = hurdle_poisson()
-        mle, _ = model.mle(
+        fit = model.fit(
             data={"y": y.tolist()},
             init={"pzero": 0.5, "lambda": 2.0},
             bounds={"pzero": (0.01, 0.99), "lambda": (0.1, None)}
         )
 
-        assert mle["pzero"] == pytest.approx(true_pzero, abs=0.15)
-        assert mle["lambda"] == pytest.approx(true_lambda, abs=0.5)
+        assert fit.params["pzero"] == pytest.approx(true_pzero, abs=0.15)
+        assert fit.params["lambda"] == pytest.approx(true_lambda, abs=0.5)
 
     def test_score(self):
         model = hurdle_poisson()
@@ -309,14 +309,14 @@ class TestMixtureModelValidation:
         y = np.random.poisson(3.0, 100)
 
         model = zero_inflated_poisson()
-        mle, _ = model.mle(
+        fit = model.fit(
             data={"y": y.tolist()},
             init={"pzero": 0.3, "lambda": 2.0},
             bounds={"pzero": (0.001, 0.999), "lambda": (0.1, None)}
         )
 
         # With standard Poisson data, pzero should be small
-        assert mle["pzero"] < 0.2
+        assert fit.params["pzero"] < 0.2
 
     def test_hurdle_vs_zip_difference(self):
         """Hurdle and ZIP should give different results on same data."""
@@ -325,14 +325,14 @@ class TestMixtureModelValidation:
         y = [0, 0, 0, 0, 1, 2, 3, 0, 0, 1, 2, 0]
 
         zip_model = zero_inflated_poisson()
-        zip_mle, _ = zip_model.mle(
+        zip_fit = zip_model.fit(
             data={"y": y},
             init={"pzero": 0.3, "lambda": 2.0},
             bounds={"pzero": (0.01, 0.99), "lambda": (0.1, None)}
         )
 
         hurdle_model = hurdle_poisson()
-        hurdle_mle, _ = hurdle_model.mle(
+        hurdle_fit = hurdle_model.fit(
             data={"y": y},
             init={"pzero": 0.3, "lambda": 2.0},
             bounds={"pzero": (0.01, 0.99), "lambda": (0.1, None)}
@@ -341,5 +341,5 @@ class TestMixtureModelValidation:
         # The models should give different lambda estimates
         # (ZIP lambda applies to all observations, hurdle lambda only to positives)
         # Both are valid models, just with different interpretations
-        assert isinstance(zip_mle["lambda"], float)
-        assert isinstance(hurdle_mle["lambda"], float)
+        assert isinstance(zip_fit.params["lambda"], float)
+        assert isinstance(hurdle_fit.params["lambda"], float)

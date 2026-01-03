@@ -39,26 +39,26 @@ class TestExponential:
     def test_mle(self):
         model = exponential()
         data = {"x": [1, 2, 3, 4, 5]}
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
         # MLE: λ̂ = 1/x̄ = 1/3
-        assert mle["lambda"] == pytest.approx(1 / 3, rel=1e-5)
+        assert fit.params["lambda"] == pytest.approx(1 / 3, rel=1e-5)
 
     def test_mle_large_sample(self):
         model = exponential()
         np.random.seed(42)
         samples = np.random.exponential(scale=2.0, size=1000)  # λ = 0.5
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
-        assert mle["lambda"] == pytest.approx(0.5, rel=0.1)
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        assert fit.params["lambda"] == pytest.approx(0.5, rel=0.1)
 
     def test_se(self):
         model = exponential()
         data = {"x": [1, 2, 3, 4, 5]}
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
-        se = model.se(mle, data)
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        # se available via fit.se
         # SE(λ̂) = λ̂/√n
-        expected_se = mle["lambda"] / math.sqrt(5)
-        assert se["lambda"] == pytest.approx(expected_se, rel=0.01)
+        expected_se = fit.params["lambda"] / math.sqrt(5)
+        assert fit.se["lambda"] == pytest.approx(expected_se, rel=0.01)
 
 
 class TestNormal:
@@ -83,24 +83,24 @@ class TestNormalMean:
     def test_mle(self):
         model = normal_mean(known_var=1.0)
         data = {"x": [1, 2, 3, 4, 5]}
-        mle, _ = model.mle(data=data, init={"mu": 0})
+        fit = model.fit(data=data, init={"mu": 0})
         # MLE: μ̂ = x̄ = 3
-        assert mle["mu"] == pytest.approx(3.0, abs=1e-5)
+        assert fit.params["mu"] == pytest.approx(3.0, abs=1e-5)
 
     def test_mle_different_variance(self):
         model = normal_mean(known_var=4.0)
         data = {"x": [0, 2, 4, 6, 8]}
-        mle, _ = model.mle(data=data, init={"mu": 0})
-        assert mle["mu"] == pytest.approx(4.0, abs=1e-5)
+        fit = model.fit(data=data, init={"mu": 0})
+        assert fit.params["mu"] == pytest.approx(4.0, abs=1e-5)
 
     def test_se(self):
         model = normal_mean(known_var=1.0)
         data = {"x": [1, 2, 3, 4, 5]}
-        mle, _ = model.mle(data=data, init={"mu": 0})
-        se = model.se(mle, data)
+        fit = model.fit(data=data, init={"mu": 0})
+        # se available via fit.se
         # SE(μ̂) = σ/√n = 1/√5
         expected_se = 1 / math.sqrt(5)
-        assert se["mu"] == pytest.approx(expected_se, rel=0.01)
+        assert fit.se["mu"] == pytest.approx(expected_se, rel=0.01)
 
 
 class TestPoisson:
@@ -113,17 +113,17 @@ class TestPoisson:
     def test_mle(self):
         model = poisson()
         data = {"x": [2, 3, 1, 4, 2, 3]}  # mean = 2.5
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 100)})
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 100)})
         # MLE: λ̂ = x̄ = 2.5
-        assert mle["lambda"] == pytest.approx(2.5, rel=1e-5)
+        assert fit.params["lambda"] == pytest.approx(2.5, rel=1e-5)
 
     def test_mle_large_sample(self):
         model = poisson()
         np.random.seed(42)
         samples = np.random.poisson(lam=5.0, size=500)
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 100)})
-        assert mle["lambda"] == pytest.approx(5.0, rel=0.1)
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 100)})
+        assert fit.params["lambda"] == pytest.approx(5.0, rel=0.1)
 
 
 class TestBernoulli:
@@ -136,21 +136,21 @@ class TestBernoulli:
     def test_mle(self):
         model = bernoulli()
         data = {"x": [1, 0, 1, 1, 0, 1, 0, 1]}  # 5 successes, 8 trials
-        mle, _ = model.mle(data=data, init={"p": 0.5}, bounds={"p": (0.01, 0.99)})
+        fit = model.fit(data=data, init={"p": 0.5}, bounds={"p": (0.01, 0.99)})
         # MLE: p̂ = 5/8 = 0.625
-        assert mle["p"] == pytest.approx(0.625, rel=1e-5)
+        assert fit.params["p"] == pytest.approx(0.625, rel=1e-5)
 
     def test_mle_all_success(self):
         model = bernoulli()
         data = {"x": [1, 1, 1, 1, 1]}
-        mle, _ = model.mle(data=data, init={"p": 0.5}, bounds={"p": (0.01, 0.99)})
-        assert mle["p"] == pytest.approx(0.99, abs=0.01)  # Bounded at 0.99
+        fit = model.fit(data=data, init={"p": 0.5}, bounds={"p": (0.01, 0.99)})
+        assert fit.params["p"] == pytest.approx(0.99, abs=0.01)  # Bounded at 0.99
 
     def test_mle_all_failure(self):
         model = bernoulli()
         data = {"x": [0, 0, 0, 0, 0]}
-        mle, _ = model.mle(data=data, init={"p": 0.5}, bounds={"p": (0.01, 0.99)})
-        assert mle["p"] == pytest.approx(0.01, abs=0.01)  # Bounded at 0.01
+        fit = model.fit(data=data, init={"p": 0.5}, bounds={"p": (0.01, 0.99)})
+        assert fit.params["p"] == pytest.approx(0.01, abs=0.01)  # Bounded at 0.01
 
 
 class TestBinomial:
@@ -163,9 +163,9 @@ class TestBinomial:
     def test_mle(self):
         model = binomial()
         data = {"k": 7, "n": 10}  # 7 successes in 10 trials
-        mle, _ = model.mle(data=data, init={"p": 0.5}, bounds={"p": (0.01, 0.99)})
+        fit = model.fit(data=data, init={"p": 0.5}, bounds={"p": (0.01, 0.99)})
         # MLE: p̂ = k/n = 0.7
-        assert mle["p"] == pytest.approx(0.7, rel=1e-3)
+        assert fit.params["p"] == pytest.approx(0.7, rel=1e-3)
 
 
 class TestGamma:
@@ -302,10 +302,10 @@ class TestConvergenceProperties:
         for n in [50, 200, 1000]:
             samples = np.random.exponential(scale=1/true_lambda, size=n)
             data = {"x": samples.tolist()}
-            mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+            fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
             # Larger samples should give estimates closer to true value
             if n >= 200:
-                assert abs(mle["lambda"] - true_lambda) < 0.3
+                assert abs(fit.params["lambda"] - true_lambda) < 0.3
 
     def test_normal_consistency(self):
         """MLE for normal mean should converge to true parameter."""
@@ -316,9 +316,9 @@ class TestConvergenceProperties:
         for n in [50, 200, 1000]:
             samples = np.random.normal(loc=true_mu, scale=1.0, size=n)
             data = {"x": samples.tolist()}
-            mle, _ = model.mle(data=data, init={"mu": 0})
+            fit = model.fit(data=data, init={"mu": 0})
             if n >= 200:
-                assert abs(mle["mu"] - true_mu) < 0.2
+                assert abs(fit.params["mu"] - true_mu) < 0.2
 
 
 class TestGammaMLE:
@@ -330,14 +330,14 @@ class TestGammaMLE:
         # shape=2, rate=1
         samples = np.random.gamma(2.0, 1.0, size=200)
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"alpha": 1.0, "beta": 1.0},
             bounds={"alpha": (0.1, 10), "beta": (0.1, 10)}
         )
         # Alpha should be close to 2, beta close to 1
-        assert mle["alpha"] == pytest.approx(2.0, rel=0.3)
-        assert mle["beta"] == pytest.approx(1.0, rel=0.3)
+        assert fit.params["alpha"] == pytest.approx(2.0, rel=0.3)
+        assert fit.params["beta"] == pytest.approx(1.0, rel=0.3)
 
     def test_gamma_mle_different_params(self):
         model = gamma()
@@ -345,14 +345,14 @@ class TestGammaMLE:
         # shape=3, rate=2 (scale=0.5)
         samples = np.random.gamma(3.0, 0.5, size=300)
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"alpha": 1.0, "beta": 1.0},
             bounds={"alpha": (0.1, 20), "beta": (0.1, 10)}
         )
-        assert mle["alpha"] == pytest.approx(3.0, rel=0.3)
+        assert fit.params["alpha"] == pytest.approx(3.0, rel=0.3)
         # Rate beta = 1/scale = 2
-        assert mle["beta"] == pytest.approx(2.0, rel=0.3)
+        assert fit.params["beta"] == pytest.approx(2.0, rel=0.3)
 
 
 class TestWeibullMLE:
@@ -364,13 +364,13 @@ class TestWeibullMLE:
         # k=2, lambda=1
         samples = np.random.weibull(2.0, size=200)
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"k": 1.0, "lambda": 1.0},
             bounds={"k": (0.1, 10), "lambda": (0.1, 10)}
         )
         # Shape k should be close to 2
-        assert mle["k"] == pytest.approx(2.0, rel=0.3)
+        assert fit.params["k"] == pytest.approx(2.0, rel=0.3)
 
     def test_weibull_mle_scale(self):
         model = weibull()
@@ -378,13 +378,13 @@ class TestWeibullMLE:
         # k=1.5, lambda=2
         samples = 2.0 * np.random.weibull(1.5, size=300)
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"k": 1.0, "lambda": 1.0},
             bounds={"k": (0.1, 10), "lambda": (0.1, 10)}
         )
-        assert mle["k"] == pytest.approx(1.5, rel=0.3)
-        assert mle["lambda"] == pytest.approx(2.0, rel=0.3)
+        assert fit.params["k"] == pytest.approx(1.5, rel=0.3)
+        assert fit.params["lambda"] == pytest.approx(2.0, rel=0.3)
 
 
 class TestBetaMLE:
@@ -396,13 +396,13 @@ class TestBetaMLE:
         # alpha=2, beta=2 (symmetric around 0.5)
         samples = np.random.beta(2.0, 2.0, size=200)
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"alpha": 1.0, "beta": 1.0},
             bounds={"alpha": (0.1, 10), "beta": (0.1, 10)}
         )
-        assert mle["alpha"] == pytest.approx(2.0, rel=0.4)
-        assert mle["beta"] == pytest.approx(2.0, rel=0.4)
+        assert fit.params["alpha"] == pytest.approx(2.0, rel=0.4)
+        assert fit.params["beta"] == pytest.approx(2.0, rel=0.4)
 
     def test_beta_mle_asymmetric(self):
         model = beta()
@@ -410,13 +410,13 @@ class TestBetaMLE:
         # alpha=5, beta=2 (skewed right)
         samples = np.random.beta(5.0, 2.0, size=300)
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"alpha": 1.0, "beta": 1.0},
             bounds={"alpha": (0.1, 20), "beta": (0.1, 20)}
         )
-        assert mle["alpha"] == pytest.approx(5.0, rel=0.4)
-        assert mle["beta"] == pytest.approx(2.0, rel=0.4)
+        assert fit.params["alpha"] == pytest.approx(5.0, rel=0.4)
+        assert fit.params["beta"] == pytest.approx(2.0, rel=0.4)
 
 
 class TestNestedDataIndexing:
@@ -500,14 +500,14 @@ class TestLognormal:
         data = {"x": samples.tolist()}
         # Use sample statistics as initial values
         log_samples = np.log(samples)
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"mu": float(np.mean(log_samples)), "sigma2": float(np.var(log_samples))},
             bounds={"mu": (-5, 5), "sigma2": (0.01, 2.0)}
         )
         # MLE: mu = mean(log(x)), sigma2 = var(log(x))
-        assert mle["mu"] == pytest.approx(1.0, rel=0.1)
-        assert mle["sigma2"] == pytest.approx(0.25, rel=0.2)  # sigma^2 = 0.5^2 = 0.25
+        assert fit.params["mu"] == pytest.approx(1.0, rel=0.1)
+        assert fit.params["sigma2"] == pytest.approx(0.25, rel=0.2)  # sigma^2 = 0.5^2 = 0.25
 
     def test_score(self):
         model = lognormal()
@@ -532,13 +532,13 @@ class TestNegativeBinomial:
         # r=5, p=0.6 -> mean = r(1-p)/p = 5*0.4/0.6 ≈ 3.33
         samples = np.random.negative_binomial(n=5, p=0.6, size=300)
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"r": 3.0, "p": 0.5},
             bounds={"r": (0.5, 20), "p": (0.1, 0.9)}
         )
-        assert mle["r"] == pytest.approx(5.0, rel=0.3)
-        assert mle["p"] == pytest.approx(0.6, rel=0.2)
+        assert fit.params["r"] == pytest.approx(5.0, rel=0.3)
+        assert fit.params["p"] == pytest.approx(0.6, rel=0.2)
 
     def test_score(self):
         model = negative_binomial()
@@ -565,15 +565,15 @@ class TestStudentT:
         samples = np.random.normal(loc=3.0, scale=2.0, size=200)
         data = {"x": samples.tolist()}
         # Use sample statistics as initial values
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"mu": float(np.mean(samples)), "sigma2": float(np.var(samples)), "nu": 30.0},
             bounds={"sigma2": (0.01, None), "nu": (2.0, 100.0)}
         )
-        assert mle["mu"] == pytest.approx(3.0, rel=0.2)
+        assert fit.params["mu"] == pytest.approx(3.0, rel=0.2)
         # For t-distribution, relationship between sigma2 and sample variance is complex
         # Just check it's in a reasonable range
-        assert 1.0 < mle["sigma2"] < 10.0
+        assert 1.0 < fit.params["sigma2"] < 10.0
 
     def test_score(self):
         model = student_t()
@@ -626,14 +626,14 @@ class TestLaplace:
         samples = np.random.laplace(loc=2.0, scale=1.0, size=500)
         data = {"x": samples.tolist()}
         # Use median as initial value for mu (close to MLE)
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"mu": float(np.median(samples)), "b": 1.0},
             bounds={"b": (0.01, None)}
         )
         # MLE: mu ≈ median, b ≈ mean absolute deviation
-        assert mle["mu"] == pytest.approx(2.0, rel=0.1)
-        assert mle["b"] == pytest.approx(1.0, rel=0.2)
+        assert fit.params["mu"] == pytest.approx(2.0, rel=0.1)
+        assert fit.params["b"] == pytest.approx(1.0, rel=0.2)
 
     def test_robust_to_outliers(self):
         """Laplace should be more robust than normal to outliers."""
@@ -641,13 +641,13 @@ class TestLaplace:
         # Data with an outlier
         data = {"x": [1.0, 2.0, 2.5, 3.0, 100.0]}
         # Use median as initial value
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"mu": 2.5, "b": 1.0},
             bounds={"b": (0.01, None)}
         )
         # Mu should be close to the median (2.5), not pulled by outlier
-        assert mle["mu"] == pytest.approx(2.5, rel=0.5)
+        assert fit.params["mu"] == pytest.approx(2.5, rel=0.5)
 
     def test_score(self):
         model = laplace()
@@ -672,13 +672,13 @@ class TestGeometric:
         # p=0.3 -> mean = (1-p)/p = 0.7/0.3 ≈ 2.33
         samples = np.random.geometric(p=0.3, size=500) - 1  # numpy counts trials, we want failures
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"p": 0.5},
             bounds={"p": (0.01, 0.99)}
         )
         # MLE: p = n/(n + sum(x)) = 1/(1 + mean(x))
-        assert mle["p"] == pytest.approx(0.3, rel=0.15)
+        assert fit.params["p"] == pytest.approx(0.3, rel=0.15)
 
     def test_score(self):
         model = geometric()
@@ -766,15 +766,15 @@ class TestCauchy:
         # Trim extreme outliers for stability
         samples = samples[(samples > -50) & (samples < 50)]
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"x0": 0.0, "gamma": 1.0},
             bounds={"gamma": (0.1, 10)}
         )
         # Location should be near 0 (median)
-        assert abs(mle["x0"]) < 1.0
+        assert abs(fit.params["x0"]) < 1.0
         # Scale should be near 1
-        assert mle["gamma"] == pytest.approx(1.0, rel=0.5)
+        assert fit.params["gamma"] == pytest.approx(1.0, rel=0.5)
 
     def test_score(self):
         model = cauchy()
@@ -799,14 +799,14 @@ class TestInverseGaussian:
         # mu=2.0, lambda=3.0
         samples = np.random.wald(mean=2.0, scale=3.0, size=500)
         data = {"x": samples.tolist()}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"mu": 1.0, "lambda": 1.0},
             bounds={"mu": (0.1, 10), "lambda": (0.1, 20)}
         )
         # MLE: mu = mean(x)
-        assert mle["mu"] == pytest.approx(2.0, rel=0.15)
-        assert mle["lambda"] == pytest.approx(3.0, rel=0.3)
+        assert fit.params["mu"] == pytest.approx(2.0, rel=0.15)
+        assert fit.params["lambda"] == pytest.approx(3.0, rel=0.3)
 
     def test_score(self):
         model = inverse_gaussian()

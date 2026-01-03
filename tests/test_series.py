@@ -442,15 +442,15 @@ class TestSeriesMLEIntegration:
         )
 
         data = {"obs_type": obs_types, "t": times}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"lambda1": 0.5, "lambda2": 0.5},
             bounds={"lambda1": (0.01, 5), "lambda2": (0.01, 5)},
         )
 
         # MLEs should be reasonably close to true values
-        assert mle["lambda1"] == pytest.approx(0.3, rel=0.4)
-        assert mle["lambda2"] == pytest.approx(0.5, rel=0.4)
+        assert fit.params["lambda1"] == pytest.approx(0.3, rel=0.4)
+        assert fit.params["lambda2"] == pytest.approx(0.5, rel=0.4)
 
     def test_exponential_series_mle_mixed_observations(self):
         """Test MLE with mixed known, masked, and censored observations."""
@@ -493,7 +493,7 @@ class TestSeriesMLEIntegration:
         )
 
         data = {"obs_type": obs_types, "t": times}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"lambda1": 0.5, "lambda2": 0.5, "lambda3": 0.5},
             bounds={f"lambda{i}": (0.01, 5) for i in range(1, 4)},
@@ -501,8 +501,8 @@ class TestSeriesMLEIntegration:
 
         # All MLEs should be positive and finite
         for p in ["lambda1", "lambda2", "lambda3"]:
-            assert mle[p] > 0
-            assert np.isfinite(mle[p])
+            assert fit.params[p] > 0
+            assert np.isfinite(fit.params[p])
 
     def test_weibull_series_mle(self):
         """Test MLE for Weibull series system."""
@@ -535,7 +535,7 @@ class TestSeriesMLEIntegration:
         )
 
         data = {"obs_type": obs_types, "t": times}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"k1": 1.5, "k2": 1.5, "theta1": 1.0, "theta2": 1.0},
             bounds={
@@ -545,10 +545,10 @@ class TestSeriesMLEIntegration:
         )
 
         # Parameters should be in reasonable range
-        assert 1.0 < mle["k1"] < 4.0
-        assert 1.0 < mle["k2"] < 4.0
-        assert 0.5 < mle["theta1"] < 5.0
-        assert 0.5 < mle["theta2"] < 5.0
+        assert 1.0 < fit.params["k1"] < 4.0
+        assert 1.0 < fit.params["k2"] < 4.0
+        assert 0.5 < fit.params["theta1"] < 5.0
+        assert 0.5 < fit.params["theta2"] < 5.0
 
 
 class TestCustomComponent:
@@ -766,14 +766,14 @@ class TestCovariateSeriesMLE:
         )
 
         data = {"obs_type": obs_types, "t": times, "x": x_vals}
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"l1": 0.5, "l2": 0.5, "beta": 0.0},
             bounds={"l1": (0.01, 5), "l2": (0.01, 5), "beta": (-3, 3)},
         )
 
         # MLEs should be in reasonable range
-        assert 0.1 < mle["l1"] < 1.0
-        assert 0.2 < mle["l2"] < 1.0
+        assert 0.1 < fit.params["l1"] < 1.0
+        assert 0.2 < fit.params["l2"] < 1.0
         # Beta should be positive (correct direction)
-        assert mle["beta"] > -1.0
+        assert fit.params["beta"] > -1.0

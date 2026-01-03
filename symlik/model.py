@@ -5,12 +5,15 @@ The core abstraction: a LikelihoodModel combines a symbolic log-likelihood
 expression with automatic differentiation for statistical inference.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 import numpy as np
 
 from .rules import get_default_engine
 from .evaluate import evaluate, ExprType
 from .utils import to_data_dict
+
+if TYPE_CHECKING:
+    from .fitted import FittedLikelihoodModel
 
 
 class LikelihoodModel:
@@ -19,11 +22,23 @@ class LikelihoodModel:
 
     Provides:
     - Symbolic score (gradient of log-likelihood)
-    - Symbolic information matrix (negative Hessian)
-    - MLE finding via Newton-Raphson
-    - Wald standard errors
+    - Symbolic Hessian and information matrix
+    - MLE estimation via fit()
+    - Full inference through FittedLikelihoodModel
 
     Example:
+        >>> from symlik.distributions import exponential
+        >>> model = exponential()
+        >>> fit = model.fit({'x': [1, 2, 3, 4, 5]}, init={'lambda': 1.0})
+        >>> fit.params
+        {'lambda': 0.333...}
+        >>> fit.se
+        {'lambda': 0.149...}
+        >>> fit.aic
+        12.34
+        >>> print(fit.summary())
+
+    For custom models:
         >>> # Exponential log-likelihood: ℓ(λ) = Σᵢ [log(λ) - λxᵢ]
         >>> model = LikelihoodModel(
         ...     log_lik=['sum', 'i', ['len', 'x'],
@@ -31,9 +46,7 @@ class LikelihoodModel:
         ...               ['*', -1, ['*', 'lambda', ['@', 'x', 'i']]]]],
         ...     params=['lambda']
         ... )
-        >>> model.score()  # Symbolic gradient
-        >>> mle, _ = model.mle(data={'x': [1, 2, 3]}, init={'lambda': 1.0})
-        >>> # mle ≈ {'lambda': 0.5}  (1/mean)
+        >>> fit = model.fit({'x': [1, 2, 3]}, init={'lambda': 1.0})
     """
 
     def __init__(self, log_lik: ExprType, params: List[str]):
@@ -162,40 +175,68 @@ class LikelihoodModel:
         """
         return -self.hessian_at(env)
 
-    def mle(
+    def fit(
         self,
         data: Any,
         init: Dict[str, float],
         max_iter: int = 100,
         tol: float = 1e-8,
-        bounds: Optional[Dict[str, Tuple[float, float]]] = None,
-    ) -> Tuple[Dict[str, float], int]:
+        bounds: Optional[Dict[str, Tuple[Optional[float], Optional[float]]]] = None,
+    ) -> 'FittedLikelihoodModel':
         """
-        Find MLE using Newton-Raphson optimization.
+        Fit the model to data.
+
+        Uses Newton-Raphson optimization to find maximum likelihood estimates,
+        then returns a FittedLikelihoodModel with full inference capabilities.
 
         Args:
             data: Data values as dict, pandas DataFrame, or polars DataFrame
             init: Initial parameter guesses
-            max_iter: Maximum iterations
-            tol: Convergence tolerance for score norm
+            max_iter: Maximum iterations (default 100)
+            tol: Convergence tolerance for score norm (default 1e-8)
             bounds: Optional parameter bounds {param: (min, max)}
 
         Returns:
-            Tuple of (MLE estimates dict, number of iterations)
+            FittedLikelihoodModel with estimation results
 
         Example:
-            >>> mle, iters = model.mle(
-            ...     data={'x': [1, 2, 3, 4, 5]},
-            ...     init={'mu': 0.0}
-            ... )
-
-            >>> # Also accepts pandas DataFrame
-            >>> import pandas as pd
-            >>> df = pd.DataFrame({'x': [1, 2, 3, 4, 5]})
-            >>> mle, iters = model.mle(data=df, init={'mu': 0.0})
+            >>> model = exponential()
+            >>> fit = model.fit({'x': [1, 2, 3, 4, 5]}, init={'lambda': 1.0})
+            >>> fit.params        # MLE estimates
+            >>> fit.se            # Standard errors
+            >>> fit.conf_int()    # Confidence intervals
+            >>> fit.summary()     # Full summary table
         """
-        # Convert DataFrame-like objects to dict
+        from .fitted import FittedLikelihoodModel
+
         data_dict = to_data_dict(data)
+        params, n_iter = self._optimize(data_dict, init, max_iter, tol, bounds)
+
+        # Check convergence
+        env = dict(data_dict)
+        env.update(params)
+        try:
+            score = self.score_at(env)
+            converged = bool(np.linalg.norm(score) < tol)
+        except Exception:
+            converged = False
+
+        return FittedLikelihoodModel(self, data_dict, params, n_iter, converged)
+
+    def _optimize(
+        self,
+        data_dict: Dict[str, Any],
+        init: Dict[str, float],
+        max_iter: int,
+        tol: float,
+        bounds: Optional[Dict[str, Tuple[Optional[float], Optional[float]]]],
+    ) -> Tuple[Dict[str, float], int]:
+        """
+        Internal Newton-Raphson optimization.
+
+        Returns:
+            Tuple of (parameter estimates dict, number of iterations)
+        """
         theta = np.array([init[p] for p in self.params])
 
         for iteration in range(max_iter):
@@ -237,7 +278,10 @@ class LikelihoodModel:
                     for i, p in enumerate(self.params):
                         if p in bounds:
                             lo, hi = bounds[p]
-                            theta_new[i] = np.clip(theta_new[i], lo, hi)
+                            if lo is not None:
+                                theta_new[i] = max(theta_new[i], lo)
+                            if hi is not None:
+                                theta_new[i] = min(theta_new[i], hi)
 
                 theta = theta_new
             except np.linalg.LinAlgError:
@@ -245,36 +289,6 @@ class LikelihoodModel:
                 theta = theta + 0.01 * score
 
         return {p: float(theta[i]) for i, p in enumerate(self.params)}, iteration + 1
-
-    def se(
-        self,
-        mle: Dict[str, float],
-        data: Any,
-    ) -> Dict[str, float]:
-        """
-        Compute Wald standard errors at MLE.
-
-        SE(θ̂) = sqrt(diag(I(θ̂)⁻¹))
-
-        Args:
-            mle: MLE parameter estimates
-            data: Data values as dict, pandas DataFrame, or polars DataFrame
-
-        Returns:
-            Dictionary of standard errors
-        """
-        data_dict = to_data_dict(data)
-        env = dict(data_dict)
-        env.update(mle)
-
-        info = self.information_at(env)
-        try:
-            cov = np.linalg.inv(info)
-            se_vals = np.sqrt(np.diag(cov))
-        except np.linalg.LinAlgError:
-            se_vals = np.full(len(self.params), np.nan)
-
-        return {p: float(se_vals[i]) for i, p in enumerate(self.params)}
 
     def __repr__(self) -> str:
         return f"LikelihoodModel(params={self.params})"

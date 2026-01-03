@@ -69,22 +69,21 @@ class TestLikelihoodModelPandas:
         model = exponential()
         df = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0, 5.0]})
 
-        mle, _ = model.mle(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        fit = model.fit(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
         # MLE for exponential: lambda = 1/mean = 1/3
-        assert mle["lambda"] == pytest.approx(1/3, rel=1e-4)
+        assert fit.params["lambda"] == pytest.approx(1/3, rel=1e-4)
 
     def test_se_with_pandas(self):
         """Standard errors should work with pandas DataFrame input."""
         model = exponential()
         df = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0, 5.0]})
 
-        mle, _ = model.mle(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
-        se = model.se(mle, df)
+        fit = model.fit(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
         # SE should be positive and finite
-        assert se["lambda"] > 0
-        assert np.isfinite(se["lambda"])
+        assert fit.se["lambda"] > 0
+        assert np.isfinite(fit.se["lambda"])
 
     def test_mle_pandas_matches_dict(self):
         """MLE with pandas should match MLE with dict."""
@@ -92,23 +91,23 @@ class TestLikelihoodModelPandas:
 
         # Dict input
         data_dict = {"x": [1.0, 2.0, 3.0]}
-        mle_dict, _ = model.mle(data=data_dict, init={"lambda": 1.0})
+        fit_dict = model.fit(data=data_dict, init={"lambda": 1.0})
 
         # Pandas input
         df = pd.DataFrame({"x": [1.0, 2.0, 3.0]})
-        mle_pandas, _ = model.mle(data=df, init={"lambda": 1.0})
+        fit_pandas = model.fit(data=df, init={"lambda": 1.0})
 
-        assert mle_dict["lambda"] == pytest.approx(mle_pandas["lambda"], rel=1e-10)
+        assert fit_dict.params["lambda"] == pytest.approx(fit_pandas.params["lambda"], rel=1e-10)
 
     def test_normal_mle_with_pandas(self):
         """Normal distribution MLE should work with pandas."""
         model = normal_mean(known_var=1.0)
         df = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0, 5.0]})
 
-        mle, _ = model.mle(data=df, init={"mu": 0.0})
+        fit = model.fit(data=df, init={"mu": 0.0})
 
         # MLE for normal mean is sample mean = 3
-        assert mle["mu"] == pytest.approx(3.0, rel=1e-4)
+        assert fit.params["mu"] == pytest.approx(3.0, rel=1e-4)
 
 
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
@@ -131,10 +130,10 @@ class TestContributionModelPandas:
             "t": [1.0, 2.0, 3.0, 4.0],
         })
 
-        mle, _ = model.mle(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        fit = model.fit(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
         # With 2 complete and 2 censored: MLE = 2 / (1+2+3+4) = 0.2
-        assert mle["lambda"] == pytest.approx(0.2, rel=0.05)
+        assert fit.params["lambda"] == pytest.approx(0.2, rel=0.05)
 
     def test_se_with_pandas(self):
         """ContributionModel SE should work with pandas DataFrame."""
@@ -152,12 +151,11 @@ class TestContributionModelPandas:
             "t": [1.0, 2.0, 1.5, 3.0],
         })
 
-        mle, _ = model.mle(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
-        se = model.se(mle, df)
+        fit = model.fit(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
-        assert "lambda" in se
-        assert se["lambda"] > 0
-        assert np.isfinite(se["lambda"])
+        assert "lambda" in fit.se
+        assert fit.se["lambda"] > 0
+        assert np.isfinite(fit.se["lambda"])
 
     def test_mle_pandas_matches_dict(self):
         """ContributionModel MLE with pandas should match dict."""
@@ -172,13 +170,13 @@ class TestContributionModelPandas:
             "obs_type": ["complete", "complete", "complete"],
             "t": [1.0, 2.0, 3.0],
         }
-        mle_dict, _ = model.mle(data=data_dict, init={"lambda": 1.0})
+        fit_dict = model.fit(data=data_dict, init={"lambda": 1.0})
 
         # Pandas input
         df = pd.DataFrame(data_dict)
-        mle_pandas, _ = model.mle(data=df, init={"lambda": 1.0})
+        fit_pandas = model.fit(data=df, init={"lambda": 1.0})
 
-        assert mle_dict["lambda"] == pytest.approx(mle_pandas["lambda"], rel=1e-10)
+        assert fit_dict.params["lambda"] == pytest.approx(fit_pandas.params["lambda"], rel=1e-10)
 
 
 @pytest.mark.skipif(not HAS_POLARS, reason="polars not installed")
@@ -190,10 +188,10 @@ class TestLikelihoodModelPolars:
         model = exponential()
         df = pl.DataFrame({"x": [1.0, 2.0, 3.0, 4.0, 5.0]})
 
-        mle, _ = model.mle(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        fit = model.fit(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
         # MLE for exponential: lambda = 1/mean = 1/3
-        assert mle["lambda"] == pytest.approx(1/3, rel=1e-4)
+        assert fit.params["lambda"] == pytest.approx(1/3, rel=1e-4)
 
     def test_mle_polars_matches_dict(self):
         """MLE with polars should match MLE with dict."""
@@ -230,41 +228,35 @@ class TestContributionModelPolars:
             "t": [1.0, 2.0, 3.0, 4.0],
         })
 
-        mle, _ = model.mle(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        fit = model.fit(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
         # With 2 complete and 2 censored: MLE = 2 / (1+2+3+4) = 0.2
-        assert mle["lambda"] == pytest.approx(0.2, rel=0.05)
+        assert fit.params["lambda"] == pytest.approx(0.2, rel=0.05)
 
 
 class TestMixedWorkflows:
     """Test mixing DataFrames and dicts in workflows."""
 
     @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
-    def test_fit_with_pandas_se_with_dict(self):
-        """Should be able to fit with pandas and compute SE with dict."""
+    def test_fit_with_pandas_se_available(self):
+        """SE should be available after fitting with pandas."""
         model = exponential()
 
         # Fit with pandas
         df = pd.DataFrame({"x": [1.0, 2.0, 3.0]})
-        mle, _ = model.mle(data=df, init={"lambda": 1.0})
+        fit = model.fit(data=df, init={"lambda": 1.0})
 
-        # SE with dict (same data)
-        data_dict = {"x": [1.0, 2.0, 3.0]}
-        se = model.se(mle, data_dict)
-
-        assert se["lambda"] > 0
+        # SE is available via fit.se
+        assert fit.se["lambda"] > 0
 
     @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
-    def test_fit_with_dict_se_with_pandas(self):
-        """Should be able to fit with dict and compute SE with pandas."""
+    def test_fit_with_dict_se_available(self):
+        """SE should be available after fitting with dict."""
         model = exponential()
 
         # Fit with dict
         data_dict = {"x": [1.0, 2.0, 3.0]}
-        mle, _ = model.mle(data=data_dict, init={"lambda": 1.0})
+        fit = model.fit(data=data_dict, init={"lambda": 1.0})
 
-        # SE with pandas (same data)
-        df = pd.DataFrame({"x": [1.0, 2.0, 3.0]})
-        se = model.se(mle, df)
-
-        assert se["lambda"] > 0
+        # SE is available via fit.se
+        assert fit.se["lambda"] > 0

@@ -40,6 +40,7 @@ __version__ = "0.3.0"
 # Core model classes
 from .model import LikelihoodModel
 from .contribution import ContributionModel
+from .fitted import FittedLikelihoodModel
 
 # Evaluation
 from .evaluate import evaluate, STANDARD_OPS, ExprType
@@ -72,6 +73,7 @@ __all__ = [
     # Core
     "LikelihoodModel",
     "ContributionModel",
+    "FittedLikelihoodModel",
     "ExprType",
     # Evaluation
     "evaluate",

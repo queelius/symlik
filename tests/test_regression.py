@@ -41,14 +41,14 @@ class TestLinearRegression:
         np.random.seed(42)
         y = np.random.normal(5.0, 2.0, 100).tolist()
 
-        mle, _ = model.mle(
+        fit = model.fit(
             data={"y": y},
             init={"beta0": 0.0, "sigma2": 1.0},
             bounds={"sigma2": (0.01, None)}
         )
 
-        assert mle["beta0"] == pytest.approx(np.mean(y), rel=0.01)
-        assert mle["sigma2"] == pytest.approx(np.var(y), rel=0.1)
+        assert fit.params["beta0"] == pytest.approx(np.mean(y), rel=0.01)
+        assert fit.params["sigma2"] == pytest.approx(np.var(y), rel=0.1)
 
     def test_mle_simple_regression(self):
         """Test simple linear regression y = 2 + 3*x + noise."""
@@ -58,15 +58,15 @@ class TestLinearRegression:
         y = 2 + 3 * x + np.random.normal(0, 1, n)
 
         model = linear_regression(predictors=["x"])
-        mle, _ = model.mle(
+        fit = model.fit(
             data={"y": y.tolist(), "x": x.tolist()},
             init={"beta0": 0, "beta1": 0, "sigma2": 1},
             bounds={"sigma2": (0.01, None)}
         )
 
-        assert mle["beta0"] == pytest.approx(2.0, rel=0.2)
-        assert mle["beta1"] == pytest.approx(3.0, rel=0.1)
-        assert mle["sigma2"] == pytest.approx(1.0, rel=0.3)
+        assert fit.params["beta0"] == pytest.approx(2.0, rel=0.2)
+        assert fit.params["beta1"] == pytest.approx(3.0, rel=0.1)
+        assert fit.params["sigma2"] == pytest.approx(1.0, rel=0.3)
 
     def test_linear_predictor_structure(self):
         """Test that multiple predictors build correct linear predictor."""
@@ -121,14 +121,14 @@ class TestLogisticRegression:
         y = np.array([0, 0, 0, 1, 1, 1]).astype(float)
 
         model = logistic_regression(predictors=["x"])
-        mle, _ = model.mle(
+        fit = model.fit(
             data={"y": y.tolist(), "x": x.tolist()},
             init={"beta0": 0, "beta1": 0},
             bounds={"beta0": (-10, 10), "beta1": (-10, 10)}
         )
 
         # With separable data, beta1 should be positive (higher x -> higher prob)
-        assert mle["beta1"] > 0
+        assert fit.params["beta1"] > 0
 
     def test_mle_probability_estimation(self):
         """Test that predicted probabilities make sense."""
@@ -142,14 +142,14 @@ class TestLogisticRegression:
         y = (np.random.uniform(0, 1, n) < true_prob).astype(float)
 
         model = logistic_regression(predictors=["x"])
-        mle, _ = model.mle(
+        fit = model.fit(
             data={"y": y.tolist(), "x": x.tolist()},
             init={"beta0": 0, "beta1": 0}
         )
 
         # Coefficients should be in the right ballpark
-        assert mle["beta0"] == pytest.approx(-0.5, abs=0.5)
-        assert mle["beta1"] == pytest.approx(1.5, abs=0.5)
+        assert fit.params["beta0"] == pytest.approx(-0.5, abs=0.5)
+        assert fit.params["beta1"] == pytest.approx(1.5, abs=0.5)
 
     def test_score(self):
         model = logistic_regression(predictors=["x"])
@@ -194,13 +194,13 @@ class TestPoissonRegression:
         y = np.random.poisson(true_lambda)
 
         model = poisson_regression(predictors=["x"])
-        mle, _ = model.mle(
+        fit = model.fit(
             data={"y": y.tolist(), "x": x.tolist()},
             init={"beta0": 0, "beta1": 0}
         )
 
-        assert mle["beta0"] == pytest.approx(0.5, abs=0.3)
-        assert mle["beta1"] == pytest.approx(0.8, abs=0.3)
+        assert fit.params["beta0"] == pytest.approx(0.5, abs=0.3)
+        assert fit.params["beta1"] == pytest.approx(0.8, abs=0.3)
 
     def test_score(self):
         model = poisson_regression(predictors=["x1", "x2"])

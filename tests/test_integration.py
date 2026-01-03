@@ -36,12 +36,12 @@ class TestEndToEndStatisticalInference:
 
         # When: Full inference pipeline
         model = exponential()
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
-        se = model.se(mle, data)
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        # se available via fit.se
 
         # Then: Confidence interval should contain true value
-        ci_lower = mle["lambda"] - 1.96 * se["lambda"]
-        ci_upper = mle["lambda"] + 1.96 * se["lambda"]
+        ci_lower = fit.params["lambda"] - 1.96 * fit.se["lambda"]
+        ci_upper = fit.params["lambda"] + 1.96 * fit.se["lambda"]
         assert ci_lower < true_lambda < ci_upper
 
     def test_normal_mean_inference_pipeline(self):
@@ -54,12 +54,12 @@ class TestEndToEndStatisticalInference:
 
         # When: Fit normal model with known variance
         model = normal_mean(known_var=true_sigma**2)
-        mle, _ = model.mle(data=data, init={"mu": 0})
-        se = model.se(mle, data)
+        fit = model.fit(data=data, init={"mu": 0})
+        # se available via fit.se
 
         # Then: 95% CI should contain true mean
-        ci_lower = mle["mu"] - 1.96 * se["mu"]
-        ci_upper = mle["mu"] + 1.96 * se["mu"]
+        ci_lower = fit.params["mu"] - 1.96 * fit.se["mu"]
+        ci_upper = fit.params["mu"] + 1.96 * fit.se["mu"]
         assert ci_lower < true_mu < ci_upper
 
     def test_poisson_inference_pipeline(self):
@@ -71,12 +71,12 @@ class TestEndToEndStatisticalInference:
 
         # When: Fit Poisson model
         model = poisson()
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 100)})
-        se = model.se(mle, data)
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 100)})
+        # se available via fit.se
 
         # Then: 95% CI should contain true parameter
-        ci_lower = mle["lambda"] - 1.96 * se["lambda"]
-        ci_upper = mle["lambda"] + 1.96 * se["lambda"]
+        ci_lower = fit.params["lambda"] - 1.96 * fit.se["lambda"]
+        ci_upper = fit.params["lambda"] + 1.96 * fit.se["lambda"]
         assert ci_lower < true_lambda < ci_upper
 
     def test_bernoulli_inference_pipeline(self):
@@ -88,12 +88,12 @@ class TestEndToEndStatisticalInference:
 
         # When: Fit Bernoulli model
         model = bernoulli()
-        mle, _ = model.mle(data=data, init={"p": 0.5}, bounds={"p": (0.01, 0.99)})
-        se = model.se(mle, data)
+        fit = model.fit(data=data, init={"p": 0.5}, bounds={"p": (0.01, 0.99)})
+        # se available via fit.se
 
         # Then: 95% CI should contain true parameter
-        ci_lower = mle["p"] - 1.96 * se["p"]
-        ci_upper = mle["p"] + 1.96 * se["p"]
+        ci_lower = fit.params["p"] - 1.96 * fit.se["p"]
+        ci_upper = fit.params["p"] + 1.96 * fit.se["p"]
         assert ci_lower < true_p < ci_upper
 
 
@@ -168,10 +168,10 @@ class TestModelConstructionToInference:
         np.random.seed(42)
         true_lambda = 2.0
         data = {"x": np.random.exponential(1/true_lambda, size=100).tolist()}
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
         # Then: MLE should be close to true parameter
-        assert mle["lambda"] == pytest.approx(true_lambda, rel=0.2)
+        assert fit.params["lambda"] == pytest.approx(true_lambda, rel=0.2)
 
     def test_custom_model_score_evaluated_correctly(self):
         """Score function should evaluate to zero at MLE (numerically)."""
@@ -185,14 +185,14 @@ class TestModelConstructionToInference:
 
         # When: Fit to data centered at mu=3
         data = {"x": [2.0, 3.0, 4.0]}  # mean = 3
-        mle, _ = model.mle(data=data, init={"mu": 0})
+        fit = model.fit(data=data, init={"mu": 0})
 
         # Then: MLE should be at the mean (which is 3)
-        assert mle["mu"] == pytest.approx(3.0, rel=1e-4)
+        assert fit.params["mu"] == pytest.approx(3.0, rel=1e-4)
 
         # And: Score at MLE should be approximately zero
         score_expr = model.score()[0]
-        score_at_mle = evaluate(score_expr, {**data, **mle})
+        score_at_mle = evaluate(score_expr, {**data, **fit.params})
         assert score_at_mle == pytest.approx(0.0, abs=1e-3)
 
 
@@ -209,11 +209,11 @@ class TestCoveragePropertiesAcrossDistributions:
         data = {"x": np.random.exponential(1/true_lambda, size=n).tolist()}
         model = exponential()
 
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
-        se = model.se(mle, data)
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        # se available via fit.se
 
-        ci_lower = mle["lambda"] - 1.96 * se["lambda"]
-        ci_upper = mle["lambda"] + 1.96 * se["lambda"]
+        ci_lower = fit.params["lambda"] - 1.96 * fit.se["lambda"]
+        ci_upper = fit.params["lambda"] + 1.96 * fit.se["lambda"]
 
         # This individual test just checks the CI is valid (positive, etc.)
         assert ci_lower > 0, "Lower CI bound should be positive"
@@ -231,11 +231,11 @@ class TestCoveragePropertiesAcrossDistributions:
             data = {"x": np.random.exponential(1/true_lambda, size=n).tolist()}
             model = exponential()
 
-            mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
-            se = model.se(mle, data)
+            fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+            # se available via fit.se
 
-            ci_lower = mle["lambda"] - 1.96 * se["lambda"]
-            ci_upper = mle["lambda"] + 1.96 * se["lambda"]
+            ci_lower = fit.params["lambda"] - 1.96 * fit.se["lambda"]
+            ci_upper = fit.params["lambda"] + 1.96 * fit.se["lambda"]
 
             if ci_lower < true_lambda < ci_upper:
                 coverage_count += 1
@@ -311,15 +311,15 @@ class TestMultiParameterInference:
         data = {"x": np.random.gamma(true_alpha, 1/true_beta, size=200).tolist()}
 
         # When: Fit model
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"alpha": 1.0, "beta": 1.0},
             bounds={"alpha": (0.1, 10), "beta": (0.1, 10)}
         )
 
         # Then: Parameters should be reasonably close to true values
-        assert mle["alpha"] == pytest.approx(true_alpha, rel=0.3)
-        assert mle["beta"] == pytest.approx(true_beta, rel=0.3)
+        assert fit.params["alpha"] == pytest.approx(true_alpha, rel=0.3)
+        assert fit.params["beta"] == pytest.approx(true_beta, rel=0.3)
 
     def test_normal_two_parameter_inference(self):
         """Test normal distribution with both mu and sigma2 estimated."""
@@ -332,12 +332,12 @@ class TestMultiParameterInference:
         data = {"x": np.random.normal(true_mu, math.sqrt(true_sigma2), size=200).tolist()}
 
         # When: Fit model
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"mu": 0, "sigma2": 1.0},
             bounds={"sigma2": (0.1, 100)}
         )
 
         # Then: Both parameters should be reasonably estimated
-        assert mle["mu"] == pytest.approx(true_mu, rel=0.15)
-        assert mle["sigma2"] == pytest.approx(true_sigma2, rel=0.25)
+        assert fit.params["mu"] == pytest.approx(true_mu, rel=0.15)
+        assert fit.params["sigma2"] == pytest.approx(true_sigma2, rel=0.25)

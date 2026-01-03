@@ -68,10 +68,10 @@ class TestContributionModelBasics:
         }
 
         # MLEs should match
-        mle_std, _ = std_model.mle(data=data_std, init={"lambda": 1.0})
-        mle_contrib, _ = contrib_model.mle(data=data_contrib, init={"lambda": 1.0})
+        fit_std = std_model.fit(data=data_std, init={"lambda": 1.0})
+        fit_contrib = contrib_model.fit(data=data_contrib, init={"lambda": 1.0})
 
-        assert mle_std["lambda"] == pytest.approx(mle_contrib["lambda"], rel=1e-4)
+        assert fit_std.params["lambda"] == pytest.approx(fit_contrib.params["lambda"], rel=1e-4)
 
 
 class TestContributionModelMLE:
@@ -95,10 +95,10 @@ class TestContributionModelMLE:
             "t": [1.0, 2.0, 3.0, 4.0],
         }
 
-        mle, iters = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
         # With 2 complete and 2 censored, MLE = 2 / (1+2+3+4) = 0.2
-        assert mle["lambda"] == pytest.approx(0.2, rel=0.05)
+        assert fit.params["lambda"] == pytest.approx(0.2, rel=0.05)
 
     def test_all_censored_gives_boundary_rate(self):
         """All censored observations - likelihood is monotonic, hits boundary."""
@@ -118,10 +118,10 @@ class TestContributionModelMLE:
 
         # With all censored, log L = -lambda * sum(t) is monotonically increasing as lambda -> 0
         # The optimizer should hit the lower bound
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.001, 10)})
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.001, 10)})
 
         # Rate should be at or near the lower bound (likelihood maximized at lambda=0)
-        assert mle["lambda"] <= 0.1  # Should be small
+        assert fit.params["lambda"] <= 0.1  # Should be small
 
     def test_mle_with_larger_sample(self):
         """Test MLE convergence with larger sample."""
@@ -152,10 +152,10 @@ class TestContributionModelMLE:
             "t": observed_times,
         }
 
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
         # MLE should be reasonably close to true value
-        assert mle["lambda"] == pytest.approx(true_lambda, rel=0.3)
+        assert fit.params["lambda"] == pytest.approx(true_lambda, rel=0.3)
 
 
 class TestContributionModelEvaluation:
@@ -204,12 +204,11 @@ class TestContributionModelSE:
             "t": [1.0, 2.0, 1.5, 3.0, 4.0],
         }
 
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
-        se = model.se(mle, data)
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
-        assert "lambda" in se
-        assert se["lambda"] > 0
-        assert np.isfinite(se["lambda"])
+        assert "lambda" in fit.se
+        assert fit.se["lambda"] > 0
+        assert np.isfinite(fit.se["lambda"])
 
 
 class TestContributionModelErrors:
@@ -225,7 +224,7 @@ class TestContributionModelErrors:
         data = {"t": [1.0, 2.0]}  # Missing obs_type
 
         with pytest.raises(ValueError, match="Type column"):
-            model.mle(data=data, init={"lambda": 1.0})
+            model.fit(data=data, init={"lambda": 1.0})
 
     def test_unknown_type_raises(self):
         model = ContributionModel(
@@ -240,7 +239,7 @@ class TestContributionModelErrors:
         }
 
         with pytest.raises(ValueError, match="Unknown observation types"):
-            model.mle(data=data, init={"lambda": 1.0})
+            model.fit(data=data, init={"lambda": 1.0})
 
 
 class TestContributionModelMultipleParams:
@@ -275,15 +274,15 @@ class TestContributionModelMultipleParams:
             "t": observed_times,
         }
 
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"k": 1.0, "lambda": 1.0},
             bounds={"k": (0.1, 10), "lambda": (0.1, 10)},
         )
 
         # Parameters should be in reasonable range
-        assert 1.0 < mle["k"] < 4.0
-        assert 0.5 < mle["lambda"] < 3.0
+        assert 1.0 < fit.params["k"] < 4.0
+        assert 0.5 < fit.params["lambda"] < 3.0
 
 
 class TestContributionConstructors:
@@ -412,10 +411,10 @@ class TestEmptyTypeCategory:
             "t": [1.0, 2.0, 3.0],
         }
 
-        mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+        fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
         # Should work and give MLE = 1/mean = 1/2 = 0.5
-        assert mle["lambda"] == pytest.approx(0.5, rel=0.05)
+        assert fit.params["lambda"] == pytest.approx(0.5, rel=0.05)
 
 
 class TestContributionModelNumericalMethods:
@@ -534,15 +533,15 @@ class TestSeriesSystemMLE:
             "t": [1.0, 1.0, 1.0, 1.0],
         }
 
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"lambda1": 0.5, "lambda2": 0.5},
             bounds={"lambda1": (0.01, 10), "lambda2": (0.01, 10)},
         )
 
         # With equal failures and equal times, rates should be similar
-        assert 0.1 < mle["lambda1"] < 2.0
-        assert 0.1 < mle["lambda2"] < 2.0
+        assert 0.1 < fit.params["lambda1"] < 2.0
+        assert 0.1 < fit.params["lambda2"] < 2.0
 
     def test_mixed_known_and_censored(self):
         """Test MLE with known cause and right-censored observations."""
@@ -567,14 +566,14 @@ class TestSeriesSystemMLE:
             "t": [1.0, 1.0, 2.0, 2.0],
         }
 
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"lambda1": 0.5, "lambda2": 0.5},
             bounds={"lambda1": (0.01, 10), "lambda2": (0.01, 10)},
         )
 
-        assert mle["lambda1"] > 0
-        assert mle["lambda2"] > 0
+        assert fit.params["lambda1"] > 0
+        assert fit.params["lambda2"] > 0
 
     def test_masked_cause_mle(self):
         """Test MLE with masked cause observations."""
@@ -594,15 +593,15 @@ class TestSeriesSystemMLE:
             "t": [1.0] * 10,
         }
 
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={"lambda1": 0.5, "lambda2": 0.5},
             bounds={"lambda1": (0.01, 10), "lambda2": (0.01, 10)},
         )
 
         # With symmetric data and equal masking, rates should be similar
-        assert 0.1 < mle["lambda1"] < 5.0
-        assert 0.1 < mle["lambda2"] < 5.0
+        assert 0.1 < fit.params["lambda1"] < 5.0
+        assert 0.1 < fit.params["lambda2"] < 5.0
 
     def test_three_component_series(self):
         """Test 3-component series system."""
@@ -640,7 +639,7 @@ class TestSeriesSystemMLE:
 
         data = {"obs_type": obs_types, "t": times}
 
-        mle, _ = model.mle(
+        fit = model.fit(
             data=data,
             init={r: 0.5 for r in rates},
             bounds={r: (0.01, 5) for r in rates},
@@ -648,7 +647,7 @@ class TestSeriesSystemMLE:
 
         # MLEs should be in reasonable range
         for r in rates:
-            assert 0.05 < mle[r] < 2.0
+            assert 0.05 < fit.params[r] < 2.0
 
 
 class TestSeriesSystemEvaluation:
