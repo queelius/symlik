@@ -35,7 +35,7 @@ For heterogeneous data with different observation types:
     ... )
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 # Core model classes
 from .model import LikelihoodModel
