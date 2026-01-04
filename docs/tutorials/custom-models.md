@@ -36,8 +36,8 @@ model = LikelihoodModel(log_lik, params=['lambda'])
 
 # Test it
 data = {'x': [1.0, 2.0, 3.0]}
-mle, _ = model.mle(data=data, init={'lambda': 1.0}, bounds={'lambda': (0.01, 10)})
-print(f"MLE: {mle['lambda']:.4f}")  # Should be 1/mean = 0.5
+fit = model.fit(data=data, init={'lambda': 1.0}, bounds={'lambda': (0.01, 10)})
+print(f"MLE: {fit.params['lambda']:.4f}")  # Should be 1/mean = 0.5
 ```
 
 ## Inspecting Symbolic Derivatives
@@ -86,10 +86,10 @@ x = np.linspace(0, 1, 20)
 y = 2 + 3*x + np.random.normal(0, 0.5, 20)
 
 data = {'x': x.tolist(), 'y': y.tolist()}
-mle, _ = model.mle(data=data, init={'beta0': 0, 'beta1': 0})
+fit = model.fit(data=data, init={'beta0': 0, 'beta1': 0})
 
-print(f"Intercept: {mle['beta0']:.3f} (true: 2)")
-print(f"Slope: {mle['beta1']:.3f} (true: 3)")
+print(f"Intercept: {fit.params['beta0']:.3f} (true: 2)")
+print(f"Slope: {fit.params['beta1']:.3f} (true: 3)")
 ```
 
 ## Example: Mixture Model (Simplified)
@@ -134,8 +134,8 @@ log_lik = ['sum', 'i', ['len', 'x'],
 model = LikelihoodModel(log_lik, params=['theta'])
 
 # After fitting, transform back
-mle, _ = model.mle(data=data, init={'theta': 0})
-lambda_estimate = np.exp(mle['theta'])
+fit = model.fit(data=data, init={'theta': 0})
+lambda_estimate = np.exp(fit.params['theta'])
 ```
 
 ## Evaluating the Log-Likelihood

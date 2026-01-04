@@ -36,7 +36,7 @@ data = {
     "t": [1.2, 3.0, 0.8, 2.1, 4.5],
 }
 
-mle, _ = model.mle(data=data, init={"lambda": 1.0})
+fit = model.fit(data=data, init={"lambda": 1.0})
 ```
 
 ## Understanding Contributions
@@ -157,11 +157,11 @@ model = ContributionModel(
 )
 
 # Fit
-mle, _ = model.mle(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
-se = model.se(mle, df)
+fit = model.fit(data=df, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
+# Standard errors via fit.se
 
 print(f"True λ: {true_lambda}")
-print(f"MLE λ: {mle['lambda']:.4f} ± {se['lambda']:.4f}")
+print(f"MLE λ: {fit.params['lambda']:.4f} ± {fit.se['lambda']:.4f}")
 ```
 
 ## DataFrame Support
@@ -170,9 +170,9 @@ print(f"MLE λ: {mle['lambda']:.4f} ± {se['lambda']:.4f}")
 
 ```python
 # All of these work
-model.mle(data=df, ...)           # pandas DataFrame
-model.mle(data=pl_df, ...)        # polars DataFrame
-model.mle(data={"t": [...], ...})  # dict of lists
+model.fit(data=df, ...)           # pandas DataFrame
+model.fit(data=pl_df, ...)        # polars DataFrame
+model.fit(data={"t": [...], ...})  # dict of lists
 ```
 
 ## Multiple Parameters
@@ -191,7 +191,7 @@ model = ContributionModel(
     }
 )
 
-mle, _ = model.mle(
+fit = model.fit(
     data=df,
     init={"k": 1.0, "lambda": 1.0},
     bounds={"k": (0.1, 10), "lambda": (0.1, 10)}

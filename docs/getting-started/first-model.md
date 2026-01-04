@@ -26,13 +26,13 @@ model = exponential()
 
 # Fit to data
 data = {'x': [2.1, 0.8, 1.5, 3.2, 1.1, 0.9, 2.4, 1.8]}
-mle, iterations = model.mle(data=data, init={'lambda': 1.0})
+fit = model.fit(data=data, init={'lambda': 1.0})
 
-print(f"Estimated rate: {mle['lambda']:.4f}")
-print(f"Converged in {iterations} iterations")
+print(f"Estimated rate: {fit.params['lambda']:.4f}")
+print(f"Converged: {fit.converged}")
 ```
 
-The `mle()` method uses Newton-Raphson optimization with symbolically-computed derivatives.
+The `fit()` method uses Newton-Raphson optimization with symbolically-computed derivatives and returns a `FittedLikelihoodModel` with all results.
 
 ## Understanding the Output
 
@@ -43,17 +43,21 @@ import numpy as np
 sample_mean = np.mean(data['x'])
 print(f"Sample mean: {sample_mean:.4f}")
 print(f"1/mean: {1/sample_mean:.4f}")
-print(f"MLE: {mle['lambda']:.4f}")
+print(f"MLE: {fit.params['lambda']:.4f}")
 # These should match
 ```
 
-## Computing Standard Errors
+## Standard Errors and Confidence Intervals
 
-Standard errors quantify uncertainty in your estimates:
+Standard errors and confidence intervals are available directly from the fitted model:
 
 ```python
-se = model.se(mle, data)
-print(f"SE(lambda): {se['lambda']:.4f}")
+# Standard error
+print(f"SE(lambda): {fit.se['lambda']:.4f}")
+
+# 95% confidence interval
+ci = fit.conf_int()
+print(f"95% CI: ({ci['lambda'][0]:.3f}, {ci['lambda'][1]:.3f})")
 ```
 
 The standard error comes from the observed Fisher information:
@@ -62,19 +66,28 @@ The standard error comes from the observed Fisher information:
 
 For the exponential distribution, this works out to \(\hat\lambda / \sqrt{n}\).
 
-## Confidence Intervals
+## Model Fit Statistics
 
-Build a 95% confidence interval:
+The fitted model provides information criteria and other fit statistics:
 
 ```python
-ci_lower = mle['lambda'] - 1.96 * se['lambda']
-ci_upper = mle['lambda'] + 1.96 * se['lambda']
-print(f"95% CI: ({ci_lower:.3f}, {ci_upper:.3f})")
+print(f"Log-likelihood: {fit.llf:.4f}")
+print(f"AIC: {fit.aic:.4f}")
+print(f"BIC: {fit.bic:.4f}")
+print(f"Observations: {fit.nobs}")
+```
+
+## Summary Table
+
+Get a formatted summary of all results:
+
+```python
+print(fit.summary())
 ```
 
 ## What Happened Behind the Scenes
 
-When you called `model.mle()`, symlik:
+When you called `model.fit()`, symlik:
 
 1. **Differentiated** the log-likelihood symbolically to get the score function
 2. **Differentiated again** to get the Hessian matrix
@@ -89,7 +102,7 @@ score = model.score()
 print(f"Score expression: {score}")
 
 # Evaluate at MLE
-score_at_mle = model.score_at({**data, **mle})
+score_at_mle = model.score_at({**data, **fit.params})
 print(f"Score at MLE: {score_at_mle}")  # Should be ~0
 ```
 
@@ -98,7 +111,7 @@ print(f"Score at MLE: {score_at_mle}")  # Should be ~0
 Some parameters have natural constraints. For rate parameters, we need \(\lambda > 0\):
 
 ```python
-mle, _ = model.mle(
+fit = model.fit(
     data=data,
     init={'lambda': 1.0},
     bounds={'lambda': (0.01, 10.0)}

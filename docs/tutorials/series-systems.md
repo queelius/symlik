@@ -44,7 +44,7 @@ data = {
     "t": [1.2, 0.8, 1.5, 3.0],
 }
 
-mle, _ = model.mle(data=data, init={"lambda1": 0.5, "lambda2": 0.5, "lambda3": 0.5})
+fit = model.fit(data=data, init={"lambda1": 0.5, "lambda2": 0.5, "lambda3": 0.5})
 ```
 
 ## Series System Likelihood
@@ -259,20 +259,20 @@ model = ContributionModel(
     contributions=contribs,
 )
 
-mle, _ = model.mle(
+fit = model.fit(
     data=df,
     init={"lambda1": 0.5, "lambda2": 0.5, "lambda3": 0.5},
     bounds={f"lambda{i}": (0.01, 5) for i in range(1, 4)},
 )
 
-se = model.se(mle, df)
+# Standard errors via fit.se
 
 # Results
 print("Component | True | MLE | SE")
 print("-" * 40)
 for i in range(3):
     p = f"lambda{i+1}"
-    print(f"    {i+1}     | {true_rates[i]:.2f} | {mle[p]:.3f} | {se[p]:.3f}")
+    print(f"    {i+1}     | {true_rates[i]:.2f} | {fit.params[p]:.3f} | {fit.se[p]:.3f}")
 ```
 
 ## Weibull Series Systems

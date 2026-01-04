@@ -297,7 +297,7 @@ data = {
     "t": [1.2, 0.8, 1.5, 3.0],
 }
 
-mle, _ = model.mle(
+fit = model.fit(
     data=data,
     init={"lambda": 0.5, "k": 1.5, "theta": 1.0},
     bounds={"lambda": (0.01, 5), "k": (0.5, 5), "theta": (0.1, 10)},

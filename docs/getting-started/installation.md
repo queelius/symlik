@@ -30,8 +30,8 @@ from symlik.distributions import exponential
 
 # Quick test
 model = exponential()
-mle, _ = model.mle(data={'x': [1, 2, 3]}, init={'lambda': 1.0})
-print(f"MLE: {mle['lambda']:.3f}")  # Should print ~0.5
+fit = model.fit(data={'x': [1, 2, 3]}, init={'lambda': 1.0})
+print(f"MLE: {fit.params['lambda']:.3f}")  # Should print ~0.5
 ```
 
 ## Development Installation

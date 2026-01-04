@@ -157,13 +157,13 @@ bounds = {
 }
 
 # Fit
-mle, iterations = model.mle(data=data, init=init, bounds=bounds)
-se = model.se(mle, data)
+fit = model.fit(data=data, init=init, bounds=bounds)
+# Standard errors available via fit.se
 
 # Display results
 for i in range(1, 6):
-    print(f"Component {i}: k={mle[f'k{i}']:.4f} (SE={se[f'k{i}']:.4f}), "
-          f"θ={mle[f'theta{i}']:.2f} (SE={se[f'theta{i}']:.2f})")
+    print(f"Component {i}: k={fit.params[f'k{i}']:.4f} (SE={fit.se[f'k{i}']:.4f}), "
+          f"θ={fit.params[f'theta{i}']:.2f} (SE={fit.se[f'theta{i}']:.2f})")
 ```
 
 ## Example Output

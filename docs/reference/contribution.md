@@ -24,19 +24,19 @@ model = ContributionModel(
 
 ### Methods
 
-#### mle
+#### fit
 
 ```python
-mle, iterations = model.mle(
+fit = model.fit(
     data: Union[dict, DataFrame],
     init: Dict[str, float],
     max_iter: int = 100,
     tol: float = 1e-8,
     bounds: Optional[Dict[str, Tuple[float, float]]] = None,
-) -> Tuple[Dict[str, float], int]
+) -> FittedLikelihoodModel
 ```
 
-Find maximum likelihood estimates.
+Find maximum likelihood estimates and return a fitted model object.
 
 | Parameter | Description |
 |-----------|-------------|
@@ -46,18 +46,11 @@ Find maximum likelihood estimates.
 | `tol` | Convergence tolerance (score norm) |
 | `bounds` | Optional parameter bounds `{param: (min, max)}` |
 
-**Returns**: Tuple of (MLE dict, iteration count)
-
-#### se
-
-```python
-se = model.se(
-    mle: Dict[str, float],
-    data: Union[dict, DataFrame],
-) -> Dict[str, float]
-```
-
-Compute Wald standard errors at MLE.
+**Returns**: `FittedLikelihoodModel` with properties:
+- `params` - MLE estimates
+- `se` - Standard errors
+- `llf`, `aic`, `bic` - Fit statistics
+- `conf_int()`, `wald_test()`, `summary()` - Inference methods
 
 #### evaluate
 
@@ -190,11 +183,12 @@ data = {
     "duration": [1.2, 0.8, 3.0, 1.5, 2.5],
 }
 
-# Fit
-mle, _ = model.mle(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
-se = model.se(mle, data)
+# Fit and access results
+fit = model.fit(data=data, init={"lambda": 1.0}, bounds={"lambda": (0.01, 10)})
 
-print(f"λ = {mle['lambda']:.3f} ± {se['lambda']:.3f}")
+print(f"λ = {fit.params['lambda']:.3f} ± {fit.se['lambda']:.3f}")
+print(f"95% CI: {fit.conf_int()['lambda']}")
+print(fit.summary())
 ```
 
 ## Internal Details

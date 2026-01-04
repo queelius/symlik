@@ -20,11 +20,10 @@ data = {'x': np.random.exponential(scale=1/2, size=100).tolist()}
 
 # Fit
 model = exponential()
-mle, _ = model.mle(data=data, init={'lambda': 1.0}, bounds={'lambda': (0.01, 10)})
-se = model.se(mle, data)
+fit = model.fit(data=data, init={'lambda': 1.0}, bounds={'lambda': (0.01, 10)})
 
 print(f"True rate: 2.0")
-print(f"Estimated: {mle['lambda']:.3f} (SE: {se['lambda']:.3f})")
+print(f"Estimated: {fit.params['lambda']:.3f} (SE: {fit.se['lambda']:.3f})")
 ```
 
 ## Normal Distribution
@@ -38,15 +37,14 @@ from symlik.distributions import normal
 
 data = {'x': [4.2, 5.1, 4.8, 5.3, 4.9, 5.2, 4.7]}
 model = normal()
-mle, _ = model.mle(
+fit = model.fit(
     data=data,
     init={'mu': 0, 'sigma2': 1},
     bounds={'sigma2': (0.01, 100)}  # Variance must be positive
 )
-se = model.se(mle, data)
 
-print(f"Mean: {mle['mu']:.3f} (SE: {se['mu']:.3f})")
-print(f"Variance: {mle['sigma2']:.3f} (SE: {se['sigma2']:.3f})")
+print(f"Mean: {fit.params['mu']:.3f} (SE: {fit.se['mu']:.3f})")
+print(f"Variance: {fit.params['sigma2']:.3f} (SE: {fit.se['sigma2']:.3f})")
 ```
 
 ### Known Variance
@@ -58,9 +56,9 @@ from symlik.distributions import normal_mean
 
 data = {'x': [4.2, 5.1, 4.8, 5.3, 4.9]}
 model = normal_mean(known_var=1.0)  # Assume sigma^2 = 1
-mle, _ = model.mle(data=data, init={'mu': 0})
+fit = model.fit(data=data, init={'mu': 0})
 
-print(f"Mean: {mle['mu']:.3f}")
+print(f"Mean: {fit.params['mu']:.3f}")
 ```
 
 ## Poisson Distribution
@@ -77,10 +75,9 @@ from symlik.distributions import poisson
 # Number of customer arrivals per hour
 data = {'x': [3, 5, 2, 4, 6, 3, 4, 5, 2, 4]}
 model = poisson()
-mle, _ = model.mle(data=data, init={'lambda': 1.0}, bounds={'lambda': (0.01, 100)})
-se = model.se(mle, data)
+fit = model.fit(data=data, init={'lambda': 1.0}, bounds={'lambda': (0.01, 100)})
 
-print(f"Rate: {mle['lambda']:.3f} (SE: {se['lambda']:.3f})")
+print(f"Rate: {fit.params['lambda']:.3f} (SE: {fit.se['lambda']:.3f})")
 print(f"Sample mean: {np.mean(data['x']):.3f}")  # Should match
 ```
 
@@ -96,10 +93,9 @@ from symlik.distributions import bernoulli
 # Survey responses: 1 = yes, 0 = no
 data = {'x': [1, 0, 1, 1, 0, 1, 0, 0, 1, 1]}
 model = bernoulli()
-mle, _ = model.mle(data=data, init={'p': 0.5}, bounds={'p': (0.01, 0.99)})
-se = model.se(mle, data)
+fit = model.fit(data=data, init={'p': 0.5}, bounds={'p': (0.01, 0.99)})
 
-print(f"Proportion: {mle['p']:.3f} (SE: {se['p']:.3f})")
+print(f"Proportion: {fit.params['p']:.3f} (SE: {fit.se['p']:.3f})")
 ```
 
 ## Gamma Distribution
@@ -114,14 +110,14 @@ np.random.seed(42)
 data = {'x': np.random.gamma(shape=2, scale=1, size=200).tolist()}
 
 model = gamma()
-mle, _ = model.mle(
+fit = model.fit(
     data=data,
     init={'alpha': 1.0, 'beta': 1.0},
     bounds={'alpha': (0.1, 10), 'beta': (0.1, 10)}
 )
 
-print(f"Shape (alpha): {mle['alpha']:.3f}")
-print(f"Rate (beta): {mle['beta']:.3f}")
+print(f"Shape (alpha): {fit.params['alpha']:.3f}")
+print(f"Rate (beta): {fit.params['beta']:.3f}")
 ```
 
 ## Weibull Distribution
@@ -136,14 +132,14 @@ np.random.seed(42)
 data = {'x': np.random.weibull(a=2, size=100).tolist()}
 
 model = weibull()
-mle, _ = model.mle(
+fit = model.fit(
     data=data,
     init={'k': 1.0, 'lambda': 1.0},
     bounds={'k': (0.1, 10), 'lambda': (0.1, 10)}
 )
 
-print(f"Shape (k): {mle['k']:.3f}")
-print(f"Scale (lambda): {mle['lambda']:.3f}")
+print(f"Shape (k): {fit.params['k']:.3f}")
+print(f"Scale (lambda): {fit.params['lambda']:.3f}")
 ```
 
 ## Beta Distribution
@@ -157,14 +153,43 @@ from symlik.distributions import beta
 data = {'x': [0.3, 0.5, 0.4, 0.6, 0.35, 0.55, 0.45]}
 
 model = beta()
-mle, _ = model.mle(
+fit = model.fit(
     data=data,
     init={'alpha': 1.0, 'beta': 1.0},
     bounds={'alpha': (0.1, 10), 'beta': (0.1, 10)}
 )
 
-print(f"Alpha: {mle['alpha']:.3f}")
-print(f"Beta: {mle['beta']:.3f}")
+print(f"Alpha: {fit.params['alpha']:.3f}")
+print(f"Beta: {fit.params['beta']:.3f}")
+```
+
+## Working with Fitted Models
+
+All fitted models provide a consistent interface:
+
+```python
+# Parameter estimates
+fit.params['lambda']
+
+# Standard errors
+fit.se['lambda']
+
+# Confidence intervals
+ci = fit.conf_int(alpha=0.05)  # 95% CI
+ci['lambda']  # (lower, upper)
+
+# Fit statistics
+fit.llf   # Log-likelihood
+fit.aic   # Akaike Information Criterion
+fit.bic   # Bayesian Information Criterion
+fit.nobs  # Number of observations
+
+# Summary table
+print(fit.summary())
+
+# Hypothesis testing
+result = fit.wald_test({'lambda': 1.0})
+print(f"p-value: {result['p_value']:.4f}")
 ```
 
 ## Tips for Fitting
@@ -181,7 +206,12 @@ print(f"Beta: {mle['beta']:.3f}")
 - Probabilities: `(0.01, 0.99)`
 - Shape parameters: `(0.1, upper)`
 
-**Check convergence.** The MLE returns iteration count. If it hits `max_iter`, the optimizer may not have converged.
+**Check convergence.** The fitted model has a `converged` property. If False, the optimizer may not have found the MLE.
+
+```python
+if not fit.converged:
+    print("Warning: optimization may not have converged")
+```
 
 ## Next: Custom Models
 
